@@ -305,7 +305,7 @@ function buildHeadStopCommand() {
     enable: [true],
     direction: [false],
     angle_set: [false],
-    velocity_set: [false],
+    velocity_set: [true],
     angle: [0.0],
     velocity: [0],
   };

@@ -32,8 +32,8 @@ SerialProcessor::SerialProcessor()
       motors_{
           HeadMotor(2, 6, 21, 200),                              // middleLeg (index 0)
           HeadMotor(3, 7, 20, 200 * 8),                          // head      (index 1)
-          ShoulderMotor(4, 8, 19, 200*16, imus_[IMU_BODY], imus_[IMU_LEG_L_LEG], -15, 35), // left
-          ShoulderMotor(5, 9, 18, 200*16, imus_[IMU_BODY], imus_[IMU_LEG_R_LEG], -15, 35)  // right
+          ShoulderMotor(4, 8, 19, 200*16, imus_[IMU_BODY], imus_[IMU_LEG_L_LEG], -35, 15), // left
+          ShoulderMotor(5, 9, 18, 200*16, imus_[IMU_BODY], imus_[IMU_LEG_R_LEG], -35, 15)  // right
       },
       motor_ptrs_{
           &motors_.middleLeg,
@@ -113,6 +113,8 @@ void SerialProcessor::process() {
 }
 
 void SerialProcessor::updateMotors() {
+    //motors_.shoulderLeft.tryHoming();
+    //motors_.shoulderRight.tryHoming();
     for (size_t i = 0; i < MOTOR_COUNT; ++i) {
         if (!motor_allowed_[i]) {
             _stopMotorForSafety(i);
@@ -188,27 +190,31 @@ void SerialProcessor::_handleMotorFrame() {
             } else if (velocity_set) {
                 hm->setAngleMode(false);
                 hm->setTargetVelocity(velocity);
-            } else {
-                hm->setAngleMode(false);
-                hm->setTargetVelocity(0);
-            }
+            } 
         }
         // Shoulders are always angle-controlled
         else if (i == 2 || i==3) {
             ShoulderMotor* sm = (i == 2) ? &motors_.shoulderLeft
                                          : &motors_.shoulderRight;
 
-            if (angle_set) {
+            if (angle_set && sm->isHomed() && !sm->isMoving()) {
+
+                if (!sm->angleConsistent()) {
+                    sm->setTargetVelocity(0);
+                    continue;
+                }
+
                 if (angle<=sm->getMinAngle()) angle = sm->getMinAngle();
                 if (angle>=sm->getMaxAngle()) angle = sm->getMaxAngle();
-                sm->setTargetAngle(-angle);
+                sm->setTargetAngle(angle);
 
                 if (velocity_set) {
                     sm->setTargetVelocity(velocity);
                 } else {
                     sm->setTargetVelocity(50);
                 }
-            } else {
+            } 
+            else if (sm->isHomed() && !sm->isMoving()) {
                 // velocity-only makes no sense for shoulders
                 sm->setTargetVelocity(0);
             }
