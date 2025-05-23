@@ -32,7 +32,7 @@
  *   0x20-0x2F => Nob Specific errors
  """
 
-import Serial
+#import Serial
 import time
 import struct
 
@@ -45,21 +45,47 @@ class SerialProcessor:
         
         # Protocoll
         self.SOF = 0xAA 
-        self.CID = 0x00
-        self.FID = 0x00
 
-    def send_packet(self, payload, payload_len, rec_time, timeout=1):
-        len = payload_len+3 # CID + FID + PAYLOAD + CRC
-        frame = bytearray([self.SOF, len, self.CID, self.FID, payload])
+
+    def send_packet(self, CID, FID, payload=[], timeout=1):
+        len = len(payload)+3 # CID + FID + PAYLOAD + CRC
+        if payload:
+            frame = bytearray([self.SOF, len, CID, FID, payload])
+        else:
+            frame = bytearray([self.SOF, len, CID, FID])
         crc  = 0
         for b in frame:
             crc ^= b
         frame.append(crc)
         self.ser.write(frame)
         self.ser.timeout=timeout
-        self.ser.read()
-
-
+        response = self.ser.read()
+        if response:
+            return interprete_response(response)
+        else:
+            return "No response"
     
+    def interprete_response(self, res):
+        match res:
+            case 0x00:
+                return "OK"
+            case 0x01:
+                return "Bad checksum"
+            case 0x02:
+                return "Unknown class object"
+            case 0x03:
+                return "Unknown function"
+            case 0x04:
+                return "Bad payload"
+            case 0x05:
+                return "Sanity check failed, either payload is too long or len < 3"
+            case 0x21:
+                return "Position is out of bound, choose smaller value(s)"
+            case _:
+                return "Unknown Error"
+        
+
+
+   
 
 

@@ -46,7 +46,7 @@ uint8_t SerialProcessor::listen(){
   uint8_t packet[MAX_PKT];
   // Read the rest of the frame
   while (Serial.available() < len) { /* wait */ }
-  Serial.readBytes(packet, len);
+  Serial.readBytes(reinterpret_cast<char *>(packet), len);
   uint8_t crc = SOF ^ len; 
   for (uint8_t i = 0; i < len - 1; i++) {
     crc ^= packet[i];
@@ -173,4 +173,3 @@ uint8_t SerialProcessor::processPacket(uint8_t *packet, uint8_t len){
   }
 
 }
-
