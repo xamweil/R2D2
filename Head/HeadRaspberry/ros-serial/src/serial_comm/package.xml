@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="3">
+  <!-- The package name must match the folder name -->
+  <name>serial_comm</name>
+
+
+  <version>0.1.0</version>
+
+
+  <description>
+    ROS2 node for serial communication with Arduino devices (Lid, Nob, Max7219).
+  </description>
+
+  <maintainer email="max.eberhard@gmx.net">Max</maintainer>
+
+  <license>Apache-2.0</license>
+
+  <!-- Buildtool dependency: ament_python is required for Python‐based ROS2 packages -->
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <!-- Runtime dependencies -->
+  <depend>rclpy</depend>
+  <depend>example_interfaces</depend>
+  <depend>std_srvs</depend>
+  <depend>serial_msg</depend>
+  <!-- Export python only build type-->
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

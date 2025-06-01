@@ -1,5 +1,5 @@
 import struct
-from SerialProcessor import SerialProcessor
+from serial_comm.SerialProcessor import SerialProcessor
 class Nob:
     def __init__(self, serial_processor: SerialProcessor, address):
         self.CID = address

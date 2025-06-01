@@ -3,7 +3,7 @@ import time
 import struct
 
 # --- Settings ---
-port = 'COM6'    # <<< Replace with your Arduino COM port
+port = '/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_758343531313513150C1-if00'    # <<< Replace with your Arduino COM port
 baud = 57600
 timeout = 1      # seconds
 
@@ -15,7 +15,7 @@ time.sleep(2)  # Wait for Arduino to reset
 # Example: Move nob1 X to 45 degrees
 
 SOF = 0xAA
-CID = 0x12   # Class ID for nob1
+CID = 0x01   # Class ID for nob1
 FID = 0x02   # Function ID for setPosX
 angle = 3    # degrees
 

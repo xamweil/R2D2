@@ -1,0 +1,12 @@
+# ROS workspace artifacts
+/**/build/
+/**/install/
+/**/log/
+
+# Python caches
+**/__pycache__/
+*.py[cod]
+
+# VS Code, PyCharm
+.vscode/
+.idea/

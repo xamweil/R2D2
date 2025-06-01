@@ -32,7 +32,7 @@
  *   0x20-0x2F => Nob Specific errors
  """
 
-#import Serial
+import serial
 import time
 import struct
 
@@ -41,18 +41,18 @@ class SerialProcessor:
     def __init__(self, port, baud=57600):
         self.baud = baud
         self.port = port
-        ser = serial.Serial(port, baud, timeout=1)
+        self.ser = serial.Serial(port, baud, timeout=1)
         
         # Protocoll
         self.SOF = 0xAA 
 
 
     def send_packet(self, CID, FID, payload=[], timeout=1):
-        len = len(payload)+3 # CID + FID + PAYLOAD + CRC
+        length = len(payload)+3 # CID + FID + PAYLOAD + CRC
         if payload:
-            frame = bytearray([self.SOF, len, CID, FID, payload])
+            frame = bytearray([self.SOF, length, CID, FID, payload])
         else:
-            frame = bytearray([self.SOF, len, CID, FID])
+            frame = bytearray([self.SOF, length, CID, FID])
         crc  = 0
         for b in frame:
             crc ^= b
@@ -61,7 +61,7 @@ class SerialProcessor:
         self.ser.timeout=timeout
         response = self.ser.read()
         if response:
-            return interprete_response(response)
+            return self.interprete_response(response[0])
         else:
             return "No response"
     
@@ -82,7 +82,7 @@ class SerialProcessor:
             case 0x21:
                 return "Position is out of bound, choose smaller value(s)"
             case _:
-                return "Unknown Error"
+                return f"Unknown Error {res}"
         
 
 

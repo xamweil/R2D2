@@ -85,18 +85,21 @@ uint8_t SerialProcessor::processPacket(uint8_t *packet, uint8_t len){
       lid = &lid1_5;
       break;
     case 0x06:
-      lid = &lid2_1;
+      lid = &lid1_6;
       break;
     case 0x07:
-      lid = &lid2_2;
+      lid = &lid2_1;
       break;
     case 0x08:
-      lid = &lid2_3;
+      lid = &lid2_2;
       break;
     case 0x09:
-      lid = &lid2_4;
+      lid = &lid2_3;
       break;
     case 0x0A:
+      lid = &lid2_4;
+      break;
+    case 0x0B:
       lid = &lid2_5;
       break;
 
