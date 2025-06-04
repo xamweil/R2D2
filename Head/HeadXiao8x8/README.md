@@ -36,7 +36,7 @@ This folder contains all code and configuration needed to drive two 4×8 LED mat
 
 ## Wiring Diagram
 
-Below is will one day be the pin mapping between the Seeeduino XIAO and the MAX7219 module. 
+Below is the pin mapping between the Seeeduino XIAO and the MAX7219 module. 
 
 ```
 Seeeduino XIAO        →  MAX7219 Module (first chip)
