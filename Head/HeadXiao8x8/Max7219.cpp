@@ -6,6 +6,9 @@ DIN(10),
 CS(7),
 CLK(8),
 lc(DIN, CLK, CS, 0){
+  lc.shutdown(0, false);
+  lc.setIntensity(0, 16);
+  lc.clearDisplay(0);
   
 }
 
