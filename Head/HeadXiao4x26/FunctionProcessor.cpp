@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <stdint.h>
 
 #include "Matrix.h"
@@ -17,14 +18,23 @@ uint8_t FunctionProcessor::processPacket(uint8_t *packet, uint8_t len) {
   }
 
   switch(funcID) {
-    case 0x01:
-      // TODO: random lights
+    case 0x01: {
+      uint8_t rateOn = 35;
+      uint8_t rateChange = 10;
+      uint8_t dt = 150;
+
+      if (payloadLen >= 1) rateOn     = payload[0];
+      if (payloadLen >= 2) rateChange = payload[1];
+      if (payloadLen >= 3) dt         = payload[2];
+
+      matrix.randomLights(rateOn, rateChange, dt);
       return 0x00;
+    }
     case 0x02: // 
-      // TODO: display off
+      matrix.displayOff();
       return 0x00;
     case 0x03:
-      // TODO: display on
+      matrix.displayOn();
       return 0x00;
     case 0x04:
       if (payloadLen < 4) return 0x04;
@@ -39,11 +49,6 @@ uint8_t FunctionProcessor::processPacket(uint8_t *packet, uint8_t len) {
       }
 
       matrix.setLeds(frame);
-      return 0x00;
-    case 0x05:
-      if (payloadLen != 3) return 0x04;
-      // TODO: set single led
-
       return 0x00;
     default:
       return 0x03;
