@@ -49,10 +49,12 @@ class SerialProcessor:
 
     def send_packet(self, CID, FID, payload=[], timeout=1):
         length = len(payload)+3 # CID + FID + PAYLOAD + CRC
+
+        frame = bytearray([self.SOF, length, CID, FID])
+
         if payload:
-            frame = bytearray([self.SOF, length, CID, FID, payload])
-        else:
-            frame = bytearray([self.SOF, length, CID, FID])
+            frame.extend(payload)
+        
         crc  = 0
         for b in frame:
             crc ^= b
