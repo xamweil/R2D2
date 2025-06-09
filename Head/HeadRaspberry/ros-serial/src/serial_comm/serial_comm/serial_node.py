@@ -10,6 +10,7 @@ from serial_comm.Lid import Lid
 from serial_comm.Nob import Nob
 from serial_comm.Max7219 import Max7219
 from serial_comm.SerialProcessor import SerialProcessor
+from arduino_flash.locks import get_port_lock
 #from serial_comm.SystemTest import SystemTest
 
 class SerialNode(Node):
@@ -63,6 +64,13 @@ class SerialNode(Node):
         if not dev:
             response.response = f"Error: Unknown device '{dev_name}'"
             self.get_logger().error(response.response)
+            return response
+        
+        port = dev.ser.port
+        lock = get_port_lock(port)
+        if lock.locked():
+            response.response = f"Error: port {port} is busy (flashing)"
+            self.get_logger().warn(response.response)
             return response
 
         # Check if method exists:

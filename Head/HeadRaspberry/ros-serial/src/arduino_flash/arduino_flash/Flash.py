@@ -2,16 +2,18 @@ import os
 import subprocess
 class Flash:
     def __init__(self):
-        pass
+        self.portUno = "/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_758343531313513150C1-if00"
         
 
-    def flash(self, name: str, port_id: str):        
+    def flash(self, name: str):        
         if name=="Uno":
-            return self.flash_uno(port_id)
+            return self.flash_uno(self.portUno)
         elif name=="Xiao8x8":
             return False, "Xiao8x8 flashing not implemented yet"
         elif name=="Xiao4x12":     
             return False, "Xiao4x12 flashing not implemented yet"
+        else:
+            return False, f"Unknown device: {name}"
 
     def flash_uno(self, port_id: str):
         """
@@ -49,7 +51,7 @@ class Flash:
             
 if __name__ == "__main__":
     flash = Flash()
-    success, message = flash.flash("Uno", "/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_758343531313513150C1-if00")
+    success, message = flash.flash("Uno",)
     print(message)
     if not success:
         print("Flashing failed")

@@ -23,6 +23,8 @@
   <depend>example_interfaces</depend>
   <depend>std_srvs</depend>
   <depend>serial_msg</depend>
+  <depend>arduino_flash</depend> <!-- for flashing Arduino devices and check if a port is locked rn -->
+  
   <!-- Export python only build type-->
   <export>
     <build_type>ament_python</build_type>

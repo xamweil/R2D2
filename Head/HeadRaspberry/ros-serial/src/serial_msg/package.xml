@@ -3,7 +3,7 @@
   <name>serial_msg</name>
   <version>0.1.0</version>
   <description>Custom messages and services for serial communication</description>
-  <maintainer email="max.eberhard@gmx.net">Your Name</maintainer>
+  <maintainer email="max.eberhard@gmx.net">Max</maintainer>
   <license>Apache-2.0</license>
 
    <!-- This line is required for any package that declares custom .msg/.srv -->
