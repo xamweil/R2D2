@@ -1,15 +1,9 @@
-#include "Matrix.h"
-#include "delay.h"
-#include "wiring_constants.h"
-#include "wiring_digital.h"
+#include <Arduino.h>
 
-static int SRCLK = 1;
-static int RCLK = 2;
-static int SER = 3;
+#include "LedMatrix.h"
+#include "SerialProcessor.h"
 
-bool checkSOF() { return Serial.available() && Serial.peek() == 0xAA; }
-
-Matrix::Matrix() {
+LedMatrix::LedMatrix() {
   pinMode(SRCLK, OUTPUT);
   pinMode(RCLK, OUTPUT);
   pinMode(SER, OUTPUT);
@@ -18,7 +12,7 @@ Matrix::Matrix() {
   digitalWrite(SER, LOW);
 }
 
-void Matrix::writeToRegister(const int bits[30]) {
+void LedMatrix::writeToRegister(const int bits[30]) {
   for (int i = 29; i >= 0; i--) {
     digitalWrite(SER, bits[i]);
     digitalWrite(SRCLK, HIGH);
@@ -29,14 +23,14 @@ void Matrix::writeToRegister(const int bits[30]) {
   digitalWrite(RCLK, LOW);
 }
 
-void Matrix::resetArr() {
+void LedMatrix::resetLedBuffer() {
   for (int i = 0; i < 30; i++) {
-    arr[i] = 1;
+    ledBuffer[i] = 1;
   }
-  writeToRegister(arr);
+  writeToRegister(ledBuffer);
 }
 
-void Matrix::randomLights(uint8_t ratOn, uint8_t ratChange, uint8_t dt_random) {
+void LedMatrix::randomLights(uint8_t ratOn, uint8_t ratChange, uint8_t dt_random) {
   bool leds[4][26];
   unsigned long lastUpdate = millis();
 
@@ -49,17 +43,16 @@ void Matrix::randomLights(uint8_t ratOn, uint8_t ratChange, uint8_t dt_random) {
 
   while (true) {
     // ratChange% of LED's are changed every iteration
-
     for (int i = 0; i < 4; i++) {
-      arr[i] = 0;
+      ledBuffer[i] = 0;
 
       for (int j = 4; j < 30; j++) {
-        arr[j] = !leds[i][j];
+        ledBuffer[j] = !leds[i][j];
       }
 
-      writeToRegister(arr);
+      writeToRegister(ledBuffer);
       delay(dt);
-      arr[i] = 1;
+      ledBuffer[i] = 1;
     }
 
     if (millis() - lastUpdate >= dt_random) {
@@ -72,63 +65,72 @@ void Matrix::randomLights(uint8_t ratOn, uint8_t ratChange, uint8_t dt_random) {
       }
     }
 
-    if (checkSOF()) {
-      resetArr();
+    if (SerialProcessor::checkNewPacketAvailable()) {
+      resetLedBuffer();
       break;
     }
   }
 }
 
-void Matrix::displayOff() {
+void LedMatrix::displayOff() {
   for (int i = 4; i < 30; i++) {
-    arr[i] = 1;
+    ledBuffer[i] = 1;
   }
 
   for (int i = 0; i < 4; i++) {
-    arr[i] = 0;
+    ledBuffer[i] = 0;
 
-    writeToRegister(arr);
+    writeToRegister(ledBuffer);
     delay(dt);
-    arr[i] = 1;
-  }
-}
-
-void Matrix::displayOn() {
-  for (int i = 4; i < 30; i++) {
-    arr[i] = 0;
+    ledBuffer[i] = 1;
   }
 
-  while (true) {
-    for (int i = 0; i < 4; i++) {
-      arr[i] = 0;
-
-      writeToRegister(arr);
-      delay(dt);
-      arr[i] = 1;
-    }
-
-    if (checkSOF()) {
-      resetArr();
+  while(true) {
+    // TODO: how long to wait here?
+    delay(dt);
+    if (SerialProcessor::checkNewPacketAvailable()) {
+      resetLedBuffer();
       break;
     }
   }
 }
 
-void Matrix::setLeds(bool frame[4][26]) {
+void LedMatrix::displayOn() {
+  for (int i = 4; i < 30; i++) {
+    ledBuffer[i] = 0;
+  }
+
   while (true) {
     for (int i = 0; i < 4; i++) {
-      arr[i] = 0;
-      for (int j = 4; j < 30; j++) {
-        arr[j] = !frame[i][j];
-      }
+      ledBuffer[i] = 0;
 
-      writeToRegister(arr);
+      writeToRegister(ledBuffer);
       delay(dt);
-      arr[i] = 1;
+      ledBuffer[i] = 1;
     }
 
-    if (checkSOF()) {
-      resetArr();
+    if (SerialProcessor::checkNewPacketAvailable()) {
+      resetLedBuffer();
+      break;
+    }
+  }
+}
+
+void LedMatrix::setLeds(bool frame[4][26]) {
+  while (true) {
+    for (int i = 0; i < 4; i++) {
+      ledBuffer[i] = 0;
+      for (int j = 4; j < 30; j++) {
+        ledBuffer[j] = !frame[i][j];
+      }
+
+      writeToRegister(ledBuffer);
+      delay(dt);
+      ledBuffer[i] = 1;
+    }
+
+    if (SerialProcessor::checkNewPacketAvailable()) {
+      resetLedBuffer();
       break;
     }
   }

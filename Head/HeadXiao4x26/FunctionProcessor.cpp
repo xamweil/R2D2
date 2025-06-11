@@ -1,12 +1,9 @@
-#include <cstdint>
-#include <stdint.h>
-
-#include "Matrix.h"
+#include <Arduino.h>
 #include "FunctionProcessor.h"
 
-FunctionProcessor::FunctionProcessor(): matrix(){}
+FunctionProcessor::FunctionProcessor(): ledMatrix(){}
 
-uint8_t FunctionProcessor::processPacket(uint8_t *packet, uint8_t len) {
+void FunctionProcessor::processPacket(uint8_t *packet, uint8_t len, bool newPacket) {
   uint8_t classID = packet[0];
   uint8_t funcID = packet[1];
   uint8_t payloadLen = len - 3;
@@ -14,8 +11,11 @@ uint8_t FunctionProcessor::processPacket(uint8_t *packet, uint8_t len) {
   const uint8_t *payload = &packet[2];
 
   if (classID != 0x01) {
-    return 0x02;
+    Serial.write(0x02);
+    return;
   }
+
+  uint8_t ret = 0x00;
 
   switch(funcID) {
     case 0x01: {
@@ -27,31 +27,50 @@ uint8_t FunctionProcessor::processPacket(uint8_t *packet, uint8_t len) {
       if (payloadLen >= 2) rateChange = payload[1];
       if (payloadLen >= 3) dt         = payload[2];
 
-      matrix.randomLights(rateOn, rateChange, dt);
-      return 0x00;
+      if (newPacket)
+        Serial.write(ret);
+      ledMatrix.randomLights(rateOn, rateChange, dt);
+      break;
     }
-    case 0x02: // 
-      matrix.displayOff();
-      return 0x00;
+    case 0x02:
+      if (newPacket)
+        Serial.write(ret);
+      ledMatrix.displayOff();
+      break;
     case 0x03:
-      matrix.displayOn();
-      return 0x00;
+      if (newPacket)
+        Serial.write(ret);
+      ledMatrix.displayOn();
+      break;
     case 0x04:
-      if (payloadLen < 4) return 0x04;
+      if (payloadLen < 16) {
+        ret = 0x04;
+        Serial.write(ret);
+        break;
+      }
 
+      if (newPacket)
+        Serial.write(ret);
       bool frame[4][26];
 
-      for (uint8_t row = 0; row < 4; ++row) {
-        uint8_t byte = payload[row];
-        for (uint8_t col = 0; col < 24; ++col) {
-          frame[row][col] = (byte & (1 << col)) != 0;
+      for (uint8_t i = 0; i < 4; i++) {
+        uint32_t row = 0;
+        row |= static_cast<uint32_t>(payload[i * 4]);
+        row |= static_cast<uint32_t>(payload[i * 4 + 1]) << 8;
+        row |= static_cast<uint32_t>(payload[i * 4 + 2]) << 16;
+        row |= static_cast<uint32_t>(payload[i * 4 + 3]) << 24;
+      
+        for (uint8_t j = 0; j < 26; j++) {
+          frame[i][j] = (row & (1 << j)) != 0;
         }
       }
 
-      matrix.setLeds(frame);
-      return 0x00;
+      ledMatrix.setLeds(frame);
+      break;
     default:
-      return 0x03;
+      ret = 0x03;
+      Serial.write(ret);
+      break;
   }
 
 }
