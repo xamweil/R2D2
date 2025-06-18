@@ -5,7 +5,7 @@ from Nob import Nob
 from Max7219 import Max7219
 import serial
 
-def initialize(serUno, serXiao8x8, serXiao4x12):
+def initialize(serUno, serXiao8x8, serXiao4x26):
     devices = {
             "lid1_1": Lid(serUno, 0x01),
             "lid1_2": Lid(serUno, 0x02),
@@ -22,6 +22,7 @@ def initialize(serUno, serXiao8x8, serXiao4x12):
             "nob2": Nob(serUno, 0x11),
             "nob3": Nob(serUno, 0x12),
             "Max7219": Max7219(serXiao8x8, 0x01),
+            "LedMatrix": LedMatrix(serXiao4x26, 0x01)
         }
     return devices
 
@@ -31,14 +32,14 @@ def initialize(serUno, serXiao8x8, serXiao4x12):
 if __name__ == "__main__":
     portUno = "/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_758343531313513150C1-if00"
     portXiao8x8 = "/dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_3FE8661E5154315432202020FF0B191E-if00"
-    portXiao4x12 = "/dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_391D567A5153593336202020FF0A1625-if00"
+    portXiao4x26 = "/dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_391D567A5153593336202020FF0A1625-if00"
     serUno = SerialProcessor(portUno)
     serXiao8x8 = SerialProcessor(portXiao8x8)
-    serXiao4x12 = SerialProcessor(portXiao4x12)
-    devices = initialize(serUno, serXiao8x8, serXiao4x12)
+    serXiao4x26 = SerialProcessor(portXiao4x26)
+    devices = initialize(serUno, serXiao8x8, serXiao4x26)
     time.sleep(2)  # Allow some time for the serial port to initialize
     
-    serXiao4x12.write("chase_col\n".encode('utf-8'))  
+    serXiao4x26.write("chase_col\n".encode('utf-8'))  
     serXiao8x8.write("random\n".encode('utf-8'))  
     """
     for device in list(devices.values())[:10]:
