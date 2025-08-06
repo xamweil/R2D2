@@ -1,0 +1,7 @@
+# Generic command/response for any CID / FID
+uint8   cid          # class ID (target object)
+uint8   fid          # function ID
+int32[] args         # optional arguments (may be empty)
+---
+uint8   status       # 0 = OK, >0 = error
+string  message      # readable text
