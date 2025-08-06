@@ -1,15 +1,15 @@
 #include <Arduino.h>
 
-const int LED_PIN = LED_BUILTIN;
+const int LED_PIN = 22;
+
+const int ENA_PIN = 22;
+const int DIR_PIN = 20;
+const int PUL_PIN = 21;
 
 void setup() {
-  // Initialize the LED pin as an output
-  pinMode(LED_PIN, OUTPUT);
+  pinMode(ENA_PIN, OUTPUT);
+  pinMode(DIR_PIN, OUTPUT);
+  pinMode(PUL_PIN, OUTPUT);
 }
 
-void loop() {
-  digitalWrite(LED_PIN, HIGH); // Turn LED on
-  delay(1000);                 // Wait 1 second (1000 milliseconds)
-  digitalWrite(LED_PIN, LOW);  // Turn LED off
-  delay(1000);                 // Wait 1 second
-}
+void loop() { sample_pwm(); }

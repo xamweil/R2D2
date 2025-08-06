@@ -3,7 +3,6 @@ default:
 
 compiledb:
     pio run --target compiledb
-    generate-clangd.sh
 
 build:
     pio run
