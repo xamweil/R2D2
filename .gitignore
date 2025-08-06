@@ -10,3 +10,6 @@
 # VS Code, PyCharm
 .vscode/
 .idea/
+
+# Personal Data
+secrets.h
