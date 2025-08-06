@@ -3,7 +3,7 @@ import time
 import struct
 
 # --- Settings ---
-port = '/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_758343531313513150C1-if00'    # <<< Replace with your Arduino COM port
+port = 'COM9'    # <<< Replace with your Arduino COM port
 baud = 57600
 timeout = 1      # seconds
 
@@ -16,18 +16,19 @@ time.sleep(2)  # Wait for Arduino to reset
 
 SOF = 0xAA
 CID = 0x01   # Class ID for nob1
-FID = 0x02   # Function ID for setPosX
-angle = 3    # degrees
+FID = 0x01   # Function ID for setPosX
+angle = []    # degrees
 
 # Payload: 2 bytes uint16_t (big endian)
-payload = struct.pack('>h', angle)  # 2 bytes: high, low
-LEN = 1 + 1 + len(payload) + 1  # CID + FID + PAYLOAD + CRC
+#payload = struct.pack('>h', angle)  # 2 bytes: high, low
+#LEN = 1 + 1 + len(payload) + 1  # CID + FID + PAYLOAD + CRC
+LEN = 3
 frame = bytearray()
 frame.append(SOF)
 frame.append(LEN)   # LEN without SOF+LEN itself
 frame.append(CID)
 frame.append(FID)
-frame.extend(payload)
+#frame.extend(payload)
 
 # Compute CRC (XOR over all bytes except CRC itself)
 crc = SOF ^ frame[1]
