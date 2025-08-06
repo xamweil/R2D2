@@ -9,6 +9,7 @@ from serial_msg.srv import DeviceCommand
 from serial_comm.Lid import Lid
 from serial_comm.Nob import Nob
 from serial_comm.Max7219 import Max7219
+from serial_comm.LedMatrix import LedMatrix
 from serial_comm.SerialProcessor import SerialProcessor
 from arduino_flash.locks import get_port_lock
 #from serial_comm.SystemTest import SystemTest
@@ -18,11 +19,11 @@ class SerialNode(Node):
         super().__init__('serial_node')
         self.portUno = "/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_758343531313513150C1-if00"
         self.portXiao8x8 = "/dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_3FE8661E5154315432202020FF0B191E-if00"
-        self.portXiao4x12 = "/dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_391D567A5153593336202020FF0A1625-if00"   
+        self.portXiao4x26 = "/dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_391D567A5153593336202020FF0A1625-if00"   
 
         self.serUno     = SerialProcessor(self.portUno)
         self.serXiao8x8  = SerialProcessor(self.portXiao8x8)
-        self.serXiao4x12 = SerialProcessor(self.portXiao4x12)
+        self.serXiao4x26 = SerialProcessor(self.portXiao4x26)
 
         self.devices = {
                 "lid1_1": Lid(self.serUno, 0x01),
@@ -40,6 +41,7 @@ class SerialNode(Node):
                 "nob2": Nob(self.serUno, 0x11),
                 "nob3": Nob(self.serUno, 0x12),
                 "Max7219": Max7219(self.serXiao8x8, 0x01),
+                "LedMatrix": LedMatrix(self.serXiao4x26, 0x01) 
             }
             
         self.resp_pub = self.create_publisher(StringMsg, 'serial_response', 10)
