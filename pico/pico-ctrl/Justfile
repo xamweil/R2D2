@@ -1,0 +1,39 @@
+default:
+    @just --list
+
+compiledb:
+    pio run --target compiledb
+    generate-clangd.sh
+
+build:
+    pio run
+
+upload:
+    pio run --target upload
+
+clean:
+    pio run --target clean
+
+flash: build upload
+
+monitor:
+    pio device monitor
+
+dev: flash monitor
+
+lib-search QUERY:
+    pio lib search "{{QUERY}}"
+
+lib-install LIB:
+    pio lib install "{{LIB}}"
+    just compiledb
+
+devices:
+    pio device list
+
+b: build
+u: upload
+f: flash
+m: monitor
+c: clean
+d: dev
