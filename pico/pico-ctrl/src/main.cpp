@@ -12,9 +12,9 @@ static constexpr uint8_t LED_PIN = 25;
 MotorControl motors[] = {
     // motor 0
     MotorControl({
-        .ena_pin = 6, // physical pin 9
-        .dir_pin = 4, // physical pin 6
-        .pul_pin = 5  // physical pin 7
+        .enable_pin = 6,    // physical pin 9
+        .direction_pin = 4, // physical pin 6
+        .pulse_pin = 5      // physical pin 7
     }),
 
     // motor 1
@@ -23,6 +23,7 @@ MotorControl motors[] = {
     //     .dir_pin_ = 5,
     //     .pul_pin_ = 5
     // })
+    //
 };
 // clang-format on
 static constexpr uint8_t NUM_MOTORS = 1;
@@ -31,14 +32,14 @@ FunctionProcessor function_processor(motors, NUM_MOTORS);
 SerialProcessor serial_processor(function_processor);
 
 void setup() {
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, HIGH);
+
     Serial.begin(115200);
     while (!Serial) {
     }
 
-    DBG_PRINTLN("DEBUG PRINT STATEMENT");
-
-    pinMode(LED_PIN, OUTPUT);
-    digitalWrite(LED_PIN, HIGH);
+    DBG_PRINTLN("SETUP COMLETE");
 }
 
 void loop() {

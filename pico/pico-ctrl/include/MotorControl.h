@@ -6,16 +6,19 @@
 #include <cstdint>
 
 struct MotorConfig {
-    uint8_t ena_pin;
-    uint8_t dir_pin;
-    uint8_t pul_pin;
+    uint8_t enable_pin;
+    uint8_t direction_pin;
+    uint8_t pulse_pin;
+    float frequency = 500;
+    float dutycycle = 0;
+    bool phaseCorrect = false;
 };
 
 struct MotorControl {
-    RP2040_PWM servo_;
-    uint8_t ena_pin_;
-    uint8_t dir_pin_;
-    uint8_t pul_pin_;
+    RP2040_PWM stepper_;
+    uint8_t enable_pin_;
+    uint8_t direction_pin_;
+    uint8_t pulse_pin_;
 
     MotorControl(const MotorConfig &config);
 
@@ -24,6 +27,8 @@ struct MotorControl {
 
     void move();
     void sample_move();
+
+    void setSpeed(int speed);
 };
 
 #endif // MOTORCONTROL_H

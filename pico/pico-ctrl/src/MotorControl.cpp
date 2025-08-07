@@ -1,44 +1,48 @@
-#include <Arduino.h>
-#include <cstdint>
 #include "MotorControl.h"
 
+#include <Arduino.h>
+#include <RP2040_PWM.h>
+#include <cstdint>
+
 MotorControl::MotorControl(const MotorConfig &config)
-    : ena_pin_(config.ena_pin), dir_pin_(config.dir_pin), pul_pin_(config.pul_pin), servo_(5, 5, 5) {
-    pinMode(ena_pin_, OUTPUT);
-    pinMode(dir_pin_, OUTPUT);
-    pinMode(pul_pin_, OUTPUT);
+    : enable_pin_(config.enable_pin), direction_pin_(config.direction_pin),
+      pulse_pin_(config.pulse_pin),
+      stepper_(config.pulse_pin, config.frequency, config.dutycycle,
+               config.phaseCorrect) {
+    pinMode(enable_pin_, OUTPUT);
+    pinMode(direction_pin_, OUTPUT);
+    // RP2024_PWM handles setup for pul_pin
+
     enable();
+}
+
+void MotorControl::setSpeed(int speed) {
+    if (speed == 0) {
+        stepper_.setPWM(pulse_pin_, 500, 0);
+    } else {
+        digitalWrite(direction_pin_, (speed < 0));
+        stepper_.setPWM(pulse_pin_, abs(speed), 50);
+    }
 }
 
 void MotorControl::move() { sample_move(); }
 
 void MotorControl::sample_move() {
-    uint16_t index = 0;
+    setSpeed(1000);
+    delay(3000);
 
-    digitalWrite(dir_pin_, HIGH);
+    // Stop before reversing
+    setSpeed(0);
+    delay(3000);
 
-    Serial.println("FIRST LOOP\n");
+    // Reversing
+    setSpeed(-500);
+    delay(3000);
 
-    for (index = 0; index < 5000; index++) {
-        digitalWrite(pul_pin_, HIGH);
-        delayMicroseconds(500);
-        digitalWrite(pul_pin_, LOW);
-        delayMicroseconds(500);
-    }
-    delay(1000);
-
-    digitalWrite(dir_pin_, LOW);
-
-    Serial.print("SECOND LOOP\n");
-
-    for (index = 0; index < 5000; index++) {
-        digitalWrite(pul_pin_, HIGH);
-        delayMicroseconds(500);
-        digitalWrite(pul_pin_, LOW);
-        delayMicroseconds(500);
-    }
-    delay(1000);
+    // Stop before reversing
+    setSpeed(0);
+    delay(3000);
 }
 
-void MotorControl::enable() { digitalWrite(ena_pin_, LOW); }
-void MotorControl::disable() { digitalWrite(ena_pin_, HIGH); }
+void MotorControl::enable() { digitalWrite(enable_pin_, LOW); }
+void MotorControl::disable() { digitalWrite(enable_pin_, HIGH); }
