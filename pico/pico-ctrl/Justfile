@@ -4,21 +4,23 @@ default:
 compiledb:
     pio run --target compiledb
 
-build:
-    pio run
+build-debug:
+    pio run -e debug
 
-upload:
-    pio run --target upload
+build-release:
+    pio run -e release
+
+upload-debug:
+    pio run -e debug --target upload
+
+upload-release:
+    pio run -e release --target upload
 
 clean:
     pio run --target clean
 
-flash: build upload
-
 monitor:
     pio device monitor
-
-dev: flash monitor
 
 lib-search QUERY:
     pio lib search "{{QUERY}}"
@@ -29,10 +31,3 @@ lib-install LIB:
 
 devices:
     pio device list
-
-b: build
-u: upload
-f: flash
-m: monitor
-c: clean
-d: dev

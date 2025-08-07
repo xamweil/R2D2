@@ -1,54 +1,47 @@
-#include "SerialUSB.h"
 #include <Arduino.h>
+#include <cstdint>
 
-const int ENA_PIN = 6;
-const int DIR_PIN = 4;
-const int PUL_PIN = 5;
+#include "FunctionProcessor.h"
+#include "MotorControl.h"
+#include "SerialProcessor.h"
+#include "debug.h"
 
-const int LED_PIN = 25;
+static constexpr uint8_t LED_PIN = 25;
 
-/**
- * 6 = ENA
- * 4 = DIR
- * 5 = PUL
- */
+// clang-format off
+MotorControl motors[] = {
+    // motor 0
+    MotorControl({
+        .ena_pin = 6, // physical pin 9
+        .dir_pin = 4, // physical pin 6
+        .pul_pin = 5  // physical pin 7
+    }),
+
+    // motor 1
+    // MotorControl({
+    //     .ena_pin_ = 6,
+    //     .dir_pin_ = 5,
+    //     .pul_pin_ = 5
+    // })
+};
+// clang-format on
+static constexpr uint8_t NUM_MOTORS = 1;
+
+FunctionProcessor function_processor(motors, NUM_MOTORS);
+SerialProcessor serial_processor(function_processor);
 
 void setup() {
-  pinMode(ENA_PIN, OUTPUT);
-  pinMode(DIR_PIN, OUTPUT);
-  pinMode(PUL_PIN, OUTPUT);
+    Serial.begin(115200);
+    while (!Serial) {
+    }
 
-  pinMode(LED_PIN, OUTPUT);
+    DBG_PRINTLN("DEBUG PRINT STATEMENT");
 
-  digitalWrite(ENA_PIN, LOW);
-
-  Serial.begin(115200);
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, HIGH);
 }
 
-int Index;
-
 void loop() {
-  digitalWrite(DIR_PIN, HIGH);
-  digitalWrite(LED_PIN, HIGH);
-
-  Serial.println("FIRST LOOP\n");
-  for (Index = 0; Index < 5000; Index++) {
-    digitalWrite(PUL_PIN, HIGH);
-    delayMicroseconds(500);
-    digitalWrite(PUL_PIN, LOW);
-    delayMicroseconds(500);
-  }
-  delay(1000);
-
-  digitalWrite(LED_PIN, LOW);
-  digitalWrite(DIR_PIN, LOW);
-
-  Serial.print("SECOND LOOP\n");
-  for (Index = 0; Index < 5000; Index++) {
-    digitalWrite(PUL_PIN, HIGH);
-    delayMicroseconds(500);
-    digitalWrite(PUL_PIN, LOW);
-    delayMicroseconds(500);
-  }
-  delay(1000);
+    // serial_processor.listen();
+    motors[0].move();
 }
