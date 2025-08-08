@@ -15,7 +15,7 @@ struct MotorConfig {
 };
 
 struct MotorControl {
-    RP2040_PWM stepper_;
+    RP2040_PWM *stepper_;
     uint8_t enable_pin_;
     uint8_t direction_pin_;
     uint8_t pulse_pin_;
@@ -26,7 +26,7 @@ struct MotorControl {
     void disable();
 
     void move();
-    void sample_move();
+    void sampleMove();
 
     void setSpeed(int speed);
 };
