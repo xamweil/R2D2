@@ -44,6 +44,9 @@ import time
 
 class Transport:
     def __init__(self, ip, port, timeout=5.0):
+        self.ip = ip
+        self.port = port
+        self.timeout = timeout
         self.sock = socket.create_connection((ip, port), timeout=timeout)
         self._lock = threading.Lock()
         self.SOF = 0xAA
@@ -53,6 +56,7 @@ class Transport:
         self._reply_lock = threading.Lock()
         self._reply_event = threading.Event()
         self._reply_frame = None
+        self._running = True
         
         # start the reader thread
         self._rx_thread = threading.Thread(target=self._reader, daemon=True)
@@ -63,36 +67,62 @@ class Transport:
     def set_taster_callback(self, fn):  # fn(cid:int, fid:int)
         self._taster_cb = fn
 
+    def connect(self):
+        while self._running:
+            try:
+                print(f"[Transport] Connecting to {self.ip}:{self.port} …")
+                self.sock = socket.create_connection((self.ip, self.port), timeout=self.timeout)
+                print("[Transport] Connected to ESP32")
+                return
+            except Exception as e:
+                print(f"[Transport] Connection failed: {e}")
+                time.sleep(2)  # Wait before retry
+
     
     def _reader(self):
         """Background thread: read 1 frame at a time and dispatch."""
-        try:
-            while True:
-                header = self._rec_exact(2)        # SOF + LEN
+        while self._running:
+            try:
+                # normal read loop on the current socket
+                header = self._rec_exact(2)          # SOF + LEN
                 if header[0] != self.SOF:
-                    continue                       # resync 
+                    continue                         # resync
 
                 length  = header[1]
                 body    = self._rec_exact(length)
                 cid, fid = body[0], body[1]
                 payload = body[2:]
 
-                # Sensor samples
+                # Sensor samples 
                 if cid in (CID_SENSOR_LEG, CID_SENSOR_FOOT) and fid == 0x02:
                     if self._sample_cb:
-                        # pass only the 16‑byte payload upward
-                        self._sample_cb(cid, payload)
+                        self._sample_cb(cid, payload)   # 16‑byte payload
                     continue
-                elif cid == 0x04: # 0x04 is Tasters
-                    # Taster pressed
+
+                # Taster presses
+                if cid == 0x04 and self._taster_cb:
                     self._taster_cb(cid, fid)
-                # Command replies  
+                    continue
+
+                # Command replies
                 with self._reply_lock:
                     self._reply_frame = bytes(header + body)
                     self._reply_event.set()
-        except Exception as e:
-            # socket closed or other fatal error – just exit thread
-            print(f"[Transport reader] stopped: {e}")
+
+            except Exception as e:
+                print(f"[Transport reader] Disconnected: {e}")
+                try:
+                    self.sock.close()
+                except Exception:
+                    pass
+
+                print("[Transport reader] Attempting reconnect...")
+                # clear any waiter from the old connection
+                with self._reply_lock:
+                    self._reply_frame = None
+                    self._reply_event.clear()
+                self.connect()
+                continue
 
     def send_frame(self, CID, FID, payload=[], timeout=1):
         length = len(payload)+2 # CID + FID + PAYLOAD
@@ -146,7 +176,8 @@ class Transport:
         return data
 
     def interprete_response(self, res):
-        match res[2]:
+        code = res[4] if len(res) >= 5 else 0x05
+        match code:
             case 0x00:
                 return "OK"
             case 0x01:

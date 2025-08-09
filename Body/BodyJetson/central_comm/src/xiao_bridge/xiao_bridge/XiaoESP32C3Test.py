@@ -19,11 +19,19 @@ def run_test():
     foot_event = Event()
 
     def on_leg(msg):
-        node.get_logger().info(f"[LEG] Accel: {msg.accel}, Gyro: {msg.gyro}, ts: {msg.ts_ms}")
+        scale_accel = 1.0 / 16384.0 # Scale factor for MPU-6500 accelerometer
+        scale_gyro  = 1.0 / 131.0  # if FS_SEL = 0
+        accel_g = [a * scale_accel for a in msg.accel]
+        gyro_dps = [g * scale_gyro for g in msg.gyro]
+        node.get_logger().info(f"[LEG] Accel[g]: {accel_g}, Gyro[dps]: {gyro_dps}, ts: {msg.ts_ms}")
         leg_event.set()
 
     def on_foot(msg):
-        node.get_logger().info(f"[FOOT] Accel: {msg.accel}, Gyro: {msg.gyro}, ts: {msg.ts_ms}")
+        scale_accel = 1.0 / 16384.0 # Scale factor for MPU-6500 accelerometer
+        scale_gyro  = 1.0 / 131.0  # if FS_SEL = 0
+        accel_g = [a * scale_accel for a in msg.accel]
+        gyro_dps = [g * scale_gyro for g in msg.gyro]
+        node.get_logger().info(f"[FOOT] Accel[g]: {accel_g}, Gyro[dps]: {gyro_dps},, ts: {msg.ts_ms}")
         foot_event.set()
 
     node.create_subscription(MPU6500Sample, "imu/leg", on_leg, 10)
@@ -54,17 +62,17 @@ def run_test():
         future = client.call_async(req)
         rclpy.spin_until_future_complete(node, future)
         return future.result()
-
+    
     node.get_logger().info("Locking ankle...")
     result = send_cmd(0x03, 0x01)
     node.get_logger().info(f"Result: {result.message}")
-    time.sleep(1)
+    time.sleep(4)
 
     node.get_logger().info("Unlocking ankle...")
     result = send_cmd(0x03, 0x02)
     node.get_logger().info(f"Result: {result.message}")
-    time.sleep(1)
-
+    time.sleep(4)
+    
     # ============ Taster Check ============
     taster1 = Event()
     taster2 = Event()
@@ -79,7 +87,7 @@ def run_test():
 
     # Connect to bridge_node's Transport directly is not possible here,
     # so we just prompt user and wait for the bridge to print messages.
-    node.get_logger().info("👂 Waiting for taster presses... (Check bridge_node log output)")
+    node.get_logger().info("Waiting for taster presses... (Check bridge_node log output)")
     input("Press Taster 1 and press ENTER...")
     input("Press Taster 2 and press ENTER...")
 

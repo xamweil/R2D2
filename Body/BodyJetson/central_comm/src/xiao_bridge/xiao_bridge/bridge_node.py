@@ -85,10 +85,7 @@ class BridgeNode(Node):
     # ================== command service =================================
     def handle_cmd(self, request, response):
         try:
-            reply = self.trans.send_frame(
-                request.cid, request.fid, list(request.args), parse_status=True
-            )
-            # send_frame(parse_status=True) returns a human‑readable string
+            reply = self.trans.send_frame(request.cid, request.fid, list(request.args))
             response.status  = 0 if reply == "OK" else 1
             response.message = reply
         except Exception as e:
