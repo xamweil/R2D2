@@ -1,15 +1,16 @@
 #include "TCPprocessor.h"
 #include "secrets.h"
-TCPprocessor::TCPprocessor(IPAddress localIP, IPAddress gateway, IPAddress subnet, uint16_t port):
+TCPprocessor::TCPprocessor(IPAddress localIP, IPAddress gateway, IPAddress subnet, Stepper &stepper, int sampleRate, uint16_t port):
     _localIP(localIP),
     _gateway(gateway), 
     _subnet(subnet),
     _ssid(WIFI_SSID), 
     _pass(WIFI_PASSWORD), 
     _server(port),
+    sampleRate(sampleRate),
     mpuLeg(0x68),
     mpuFoot(0x69),
-    stepperLeg(2048, 10, 8, 9, 7)
+    stepperLeg(stepper)
     {}
         
 
@@ -28,11 +29,11 @@ void TCPprocessor::begin() {
         }
 
         // Set sample rate and ranges
-        mpuLeg.setSampleRate(10);
+        mpuLeg.setSampleRate(sampleRate); // Set sample rate here
         mpuLeg.setAccelRange(0);  // ±2g
         mpuLeg.setGyroRange(0);   // ±250°/s
 
-        mpuFoot.setSampleRate(10);
+        mpuFoot.setSampleRate(sampleRate); // Set sample rate here
         mpuFoot.setAccelRange(0);  // ±2g
         mpuFoot.setGyroRange(0);   // ±250°/s
     
@@ -99,9 +100,12 @@ uint8_t TCPprocessor::sendPacket(uint8_t payloadLen, uint8_t CID, uint8_t FID, u
     frame[1] = LEN;
     frame[2] = CID;
     frame[3] = FID;
-    memcpy(&frame[4], packet, payloadLen);    // copy PAYLOAD
-    Serial.print("TX LEN = ");
-    Serial.println(frame[1]);
+
+    if (payloadLen) {
+        if (!packet) return 0x04;                // bad payload
+            memcpy(&frame[4], packet, payloadLen); // copy payload
+    }
+    
     size_t written = _client.write(frame, total);
     _client.flush();                        // push immediately
 
@@ -113,6 +117,7 @@ uint8_t TCPprocessor::processPacket(uint8_t *packet, uint8_t len){
     uint8_t FID = packet[1];
     uint8_t payloadlen = len -3;
 
+    uint8_t resp = 0x00;
     const uint8_t* payload = &packet[2];
 
     MPU6500* sensor= nullptr;
@@ -158,30 +163,32 @@ uint8_t TCPprocessor::processPacket(uint8_t *packet, uint8_t len){
             case 0x01:{// close position
                 stepper->step(530);
                 stepper->motorOff();
-                sendPacket(1, CID, FID, 0x00);
+                sendPacket(1, CID, FID, &resp);
                 return 0x00; // OK
             } 
                 
             case 0x02: { // open position
                 stepper->step(-512);
                 stepper->motorOff();
-                sendPacket(1, CID, FID, 0x00);
+                sendPacket(1, CID, FID, &resp);
                 return 0x00; // OK
             }
             case 0x03: { // set speed
                 stepper->setSpeed(payload[0]); // is save between 0 and 10
-                sendPacket(1, CID, FID, 0x00);
+                sendPacket(1, CID, FID, &resp);
                 return 0x00; // OK
             }
             case 0x04: { //move pos
                 int16_t step = (int16_t)((payload[0] << 8) | payload[1]); 
                 stepper->step(step); 
-                sendPacket(1, CID, FID, 0x00);
+                sendPacket(1, CID, FID, &resp);
                 return 0x00; // OK
 
 
             }
             default:
+                resp = 0x03;
+                sendPacket(1, CID, FID, &resp);
                 return 0x03; // unknown function
         }
     }    

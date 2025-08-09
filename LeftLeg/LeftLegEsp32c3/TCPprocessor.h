@@ -30,12 +30,12 @@
  #include <Arduino.h>
  #include <WiFi.h>
  #include "MPU6500.h"
- #include <Stepper.h>
+ #include "Stepper.h"
  #include <time.h>
 
  class TCPprocessor{
   public:
-    TCPprocessor(IPAddress localIP, IPAddress gateway, IPAddress subnet, uint16_t port = 5010);
+    TCPprocessor(IPAddress localIP, IPAddress gateway, IPAddress subnet, Stepper &stepper, int sampleRate, uint16_t port = 5010);
 
     void begin();
 
@@ -44,6 +44,7 @@
 
     MPU6500 mpuLeg;
     MPU6500 mpuFoot;
+    int sampleRate;
     
   private:
     uint8_t processPacket(uint8_t *packet, uint8_t len);
@@ -57,9 +58,10 @@
     const char* _pass;
     WiFiServer  _server;
     WiFiClient  _client;
+    
 
     
-    Stepper stepperLeg; 
+    Stepper& stepperLeg; 
 
     uint8_t     _lenBuf;    // tmp byte for LEN
     
