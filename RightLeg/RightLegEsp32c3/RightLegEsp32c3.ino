@@ -23,7 +23,7 @@ uint8_t out[16]; // Buffer for sensor data
 Stepper stepper = Stepper(2048, 10, 8, 9, 7);
 
 void setup() {
-  Serial.begin(115200);
+  //Serial.begin(115200);
   // Start TCP connection
 
   tcp = new TCPprocessor(localIP, gateway, subnet, stepper, SAMPLE_RATE, 5011); // Define Port 5011
