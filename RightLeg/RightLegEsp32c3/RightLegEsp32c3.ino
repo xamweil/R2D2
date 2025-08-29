@@ -2,7 +2,7 @@
 #include "secrets.h"
 #include "TCPprocessor.h"
 
-IPAddress localIP(192, 168, 66, 10);
+IPAddress localIP(192, 168, 66, 11);
 IPAddress gateway(192, 168, 66, 1);
 IPAddress subnet(255, 255, 255, 0);
 
@@ -23,10 +23,10 @@ uint8_t out[16]; // Buffer for sensor data
 Stepper stepper = Stepper(2048, 10, 8, 9, 7);
 
 void setup() {
-    Serial.begin(115200);
+  Serial.begin(115200);
   // Start TCP connection
 
-  tcp = new TCPprocessor(localIP, gateway, subnet, stepper, SAMPLE_RATE, 5010);
+  tcp = new TCPprocessor(localIP, gateway, subnet, stepper, SAMPLE_RATE, 5011); // Define Port 5011
   tcp->begin();
   pinMode(taster1, INPUT_PULLUP);
   pinMode(taster2, INPUT_PULLUP);
@@ -62,3 +62,4 @@ void loop(){
     
 }
 
+    
