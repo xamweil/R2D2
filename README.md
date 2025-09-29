@@ -66,16 +66,6 @@ Examples you’ll see in the repo:
 
 This is **actively under construction**. The goal for now is a tidy structure, consistent device-side firmware, and a minimal ROS 2 pipeline. Expect frequent updates as mechanics, wiring, and software mature.
 
-## Gallery (placeholders)
-
-* Assembly shots
-  `![Assembly](docs/img/assembly_placeholder.jpg)`
-
-* Electronics bay
-  `![Electronics](docs/img/electronics_placeholder.jpg)`
-
-* First motion / field test
-  `![Field test](docs/img/fieldtest_placeholder.jpg)`
 
 ## Contact & contributing
 
