@@ -1,0 +1,8 @@
+---
+InheritParentConfig: true
+Checks: >
+    -cppcoreguidelines-avoid-magic-numbers
+#   -cppcoreguidelines-avoid-do-while,
+#   -cppcoreguidelines-avoid-magic-numbers,
+#   -cppcoreguidelines-avoid-non-const-global-variables,
+#   -cppcoreguidelines-pro-type-vararg

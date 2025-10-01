@@ -1,0 +1,85 @@
+#pragma once
+
+#include <Arduino.h>
+#include <RP2040_PWM.h>
+
+#include <array>
+#include <cstddef>
+#include <cstdint>
+
+static constexpr size_t NUM_BUTTONS = 13;
+static constexpr size_t NUM_AXES = 8;
+
+/// BUTTONS:
+///  0 CROSS
+///  1 CIRCLE
+///  2 SQUARE
+///  3 TRIANGLE
+///  4 LEFT SHOULDER
+///  5 RIGHT SHOULDER
+///  6 LEFT TRIGGER
+///  7 RIGHT TRIGGER
+///  8 SHARE
+///  9 OPTIONS
+/// 10 HOME
+/// 11 LEFT STICK
+/// 12 RIGHT STICK
+///
+/// AXES:
+/// 0 LEFT STICK X
+/// 1 LEFT STICK Y
+/// 2 LEFT TRIGGER
+/// 3 RIGHT STICK X
+/// 4 RIGHT STICK Y
+/// 5 RIGHT TRIGGER
+/// 6 DPAD X
+/// 7 DPAD Y
+struct ControllerState {
+    std::array<bool, NUM_BUTTONS> buttons{};
+    std::array<bool, NUM_BUTTONS> prev_buttons{};
+    std::array<float, NUM_AXES> axes{};
+    std::array<float, NUM_AXES> prev_axes{};
+};
+
+struct MotorConfig {
+    uint8_t enable_pin;
+    uint8_t pulse_pin;
+    uint8_t direction_pin;
+    uint8_t step_size;
+};
+
+class Motor {
+private:
+    RP2040_PWM stepper_;
+    uint8_t enable_pin_;
+    uint8_t direction_pin_;
+    uint8_t pulse_pin_;
+    uint8_t step_size_;
+    bool direction_ = true;
+    int32_t frequency_ = 500;
+    bool enabled_ = false;
+
+public:
+    explicit Motor(const MotorConfig &config);
+
+    void setFrequency(int32_t frequency);
+    void setDirection(bool direction);
+    void setEnabled(bool enabled);
+
+    [[nodiscard]] bool getDirection() const;
+    [[nodiscard]] bool isEnabled() const;
+    [[nodiscard]] int32_t getFrequency() const;
+};
+
+struct MotorControl {
+    uint32_t last_update_;
+    ControllerState controller_state;
+    Motor motor_mid_foot;
+    Motor motor_head;
+    Motor motor_left_shoulder;
+    Motor motor_right_shoulder;
+    Motor motor_left_foot;
+    Motor motor_right_foot;
+
+    void update();
+};

@@ -1,0 +1,32 @@
+service := 'motor-control'
+
+default:
+    @just --list
+
+deps:
+    rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y
+
+build packages="":
+    #!/usr/bin/env bash
+    if [ -n "{{packages}}" ]; then
+        colcon build --symlink-install --packages-select {{packages}}
+    else
+        colcon build --symlink-install
+    fi
+
+source-overlay:
+    #!/usr/bin/env bash
+    source "./install/setup.$(basename "$SHELL" | grep -E '^(bash|zsh)$' || echo sh)"
+
+source-underlay:
+    #!/usr/bin/env bash
+    source "/opt/ros/humble/setup.$(basename "$SHELL" | grep -E '^(bash|zsh)$' || echo sh)"
+
+rosdep-update:
+    rosdep update --rosdistro $ROS_DISTRO
+
+format:
+    find ./src/ -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+
+lint:
+    clang-tidy src/*/*.cpp src/*/*.h -p .

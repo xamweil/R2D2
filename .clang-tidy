@@ -1,0 +1,33 @@
+---
+Checks: >
+  *,
+
+  -abseil-*,
+  -altera-*,
+  -android-*,
+  -boost-*,
+  -fuchsia-*,
+  -google-*,
+  -llvm*,
+  -zircon-*,
+
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -hicpp-braces-around-statements,
+  -hicpp-signed-bitwise,
+  -hicpp-vararg,
+  -misc-non-private-member-variables-in-classes,
+  -misc-include-cleaner,
+  -modernize-use-trailing-return-type,
+  -readability-avoid-const-params-in-decls,
+  -readability-braces-around-statements,
+  -readability-convert-member-functions-to-static,
+  -readability-else-after-return,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-make-member-function-const,
+  -readability-function-cognitive-complexity,
+  -readability-static-accessed-through-instance,
+
+WarningsAsErrors: ''
+HeaderFilterRegex: ''
+FormatStyle: none
