@@ -1,0 +1,39 @@
+default:
+    @just --list
+
+build:
+    pio run -e debug
+
+build-release:
+    pio run -e release
+
+upload:
+    pio run -e debug --target upload
+
+upload-release:
+    pio run -e release --target upload
+
+compiledb:
+    pio run -e debug --target compiledb
+
+clean:
+    pio run --target clean
+
+format:
+    find ./src/ -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+
+lint:
+    clang-tidy src/*.cpp src/*.h -p .
+
+monitor:
+    pio device monitor
+
+lib-search QUERY:
+    pio lib search "{{QUERY}}"
+
+lib-install LIB:
+    pio lib install "{{LIB}}"
+    just compiledb
+
+devices:
+    pio device list
