@@ -1,0 +1,38 @@
+SERVICE := "central_comm"
+COMPOSE := "docker compose"
+
+# Build base image
+build-base:
+	docker build -t bodyjetson-ros:humble base
+
+# Build service image
+build-service:
+	docker build -t bodyjetson/{{SERVICE}}:latest {{SERVICE}}
+
+# Build base and service 
+build: build-base build-service
+
+# Bring everything up (detached)
+up:
+    {{COMPOSE}} up -d
+
+# Stop and remove containers (keeps volumes)
+down:
+    {{COMPOSE}} down
+
+# Tail logs of the service
+logs:
+    {{COMPOSE}} logs -f {{SERVICE}}
+
+# Exec a shell inside the service container
+sh:
+    docker exec -it {{SERVICE}} bash
+
+# Rebuild workspace inside the running container
+rebuild-ws:
+    docker exec -it {{SERVICE}} bash -lc "source /opt/ros/humble/setup.bash && cd ~/ros2_ws && colcon build --symlink-install"
+    {{COMPOSE}} restart {{SERVICE}}
+
+# Run Test.py inside the container
+test:
+    @docker compose exec -it {{SERVICE}} bash -lc "source //home/ros/ros2_ws/install/setup.bash && python3 /home/ros/ros2_ws/src/xiao_bridge/xiao_bridge/Test.py"
