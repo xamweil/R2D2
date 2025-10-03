@@ -51,13 +51,13 @@ void Motor::setEnabled(bool enabled) {
 }
 
 void MotorControl::update() {
-    uint32_t now = millis();
-    uint32_t dt = now - last_update_;
+    const uint32_t now = millis();
+    const uint32_t dt = now - last_update_;
     last_update_ = now;
 
     // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
     for (size_t i = 0; i < controller_state.buttons.size(); ++i) {
-        bool &button = controller_state.buttons[i];
+        const bool &button = controller_state.buttons[i];
         bool &prev_button = controller_state.prev_buttons[i];
 
         if (button == prev_button)

@@ -8,7 +8,7 @@ services:
     restart: unless-stopped
     environment:
       - OVERLAY_WS=/opt/ros/overlay_ws
-    priviledged: true
+    # priviledged: true
     volumes:
       - "../Body/BodyJetson/central_comm/src/:/opt/ros/overlay_ws/src/"
       - "../Body/BodyJetson/central_comm/Justfile:/opt/ros/overlay_ws/Justfile"
@@ -18,7 +18,7 @@ services:
       - "../Body/BodyPico_MotorControl/platformio.ini:/opt/pico/platformio.ini"
       - "../Body/BodyPico_MotorControl/build.py:/opt/pico/build.py"
       - "../Body/BodyPico_MotorControl/Justfile:/opt/pico/Justfile"
-    devices:
-      - /dev/ttyACM0
-      - /dev/input/event5
-      # - /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66358986392802D-if00
+    # devices:
+    #   - /dev/ttyACM0
+    #   - /dev/input/event5
+    #   - /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66358986392802D-if00
