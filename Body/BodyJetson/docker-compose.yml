@@ -1,6 +1,5 @@
 services:
   central_comm:
-    user: root
     build:
       context: ./central_comm
       dockerfile: Dockerfile
@@ -10,22 +9,19 @@ services:
     restart: unless-stopped
     environment:
       - ROS_DOMAIN_ID=0
-      - LANG=en_US.UTF-8
-      - LC_ALL=en_US.UTF-8
     volumes:
       # Mount shared volume:
       - ./central_comm/ros2_ws/src:/home/ros/ros2_ws/src:rw
-      - ./central_comm/ros2_ws/build:/home/ros/ros2_ws/build:rw
-      - ./central_comm/ros2_ws/install:/home/ros/ros2_ws/install:rw
-      - ./central_comm/ros2_ws/log:/home/ros/.ros/log:rw
-    devices:
+      - central_comm_build:/home/ros/ros2_ws/build:rw
+      - central_comm_install:/home/ros/ros2_ws/install:rw
+      - central_comm_log:/home/ros/ros2_ws/log:rw
+    # devices:
       #- /dev/ttyACM0:/dev/ttyACM0        # Pico 
       #- /dev/ttyUSB0:/dev/ttyUSB0        
       #- /dev/ttyUSB1:/dev/ttyUSB1        
-      - /dev/i2c-1:/dev/i2c-1            # I²C
-
+      # - /dev/i2c-1:/dev/i2c-1            # I²C
 
 volumes:
-  central_build: {}
-  central_install: {}
-  central_log: {}
+  central_comm_build: {}
+  central_comm_install: {}
+  central_comm_log: {}
