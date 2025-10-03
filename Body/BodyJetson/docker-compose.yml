@@ -12,6 +12,7 @@ services:
       - ROS_DOMAIN_ID=0
       - LANG=en_US.UTF-8
       - LC_ALL=en_US.UTF-8
+      - ROS_LOG_DIR=/home/ros/.ros/log
     volumes:
       # Mount shared volume:
       - ./central_comm/ros2_ws/src:/home/ros/ros2_ws/src:rw
@@ -22,7 +23,7 @@ services:
       #- /dev/ttyACM0:/dev/ttyACM0        # Pico 
       #- /dev/ttyUSB0:/dev/ttyUSB0        
       #- /dev/ttyUSB1:/dev/ttyUSB1        
-      - /dev/i2c-1:/dev/i2c-1            # I²C
+      - /dev/i2c-7:/dev/i2c-7            # I²C
 
 
 volumes:

@@ -5,7 +5,7 @@
 #include <string>
 
 #include "rclcpp/rclcpp.hpp"
-#include "tcp_msg/msg/MPU6500.msg"
+#include "tcp_msg/msg/mpu6500_sample.hpp"
 #include "body_mpu_reader/mpu6500.hpp"
 
 namespace body_mpu_reader {
@@ -25,7 +25,7 @@ namespace body_mpu_reader {
         int i2c_address_;
         double publish_rate_;
         std::string frame_id_;
-        stdf::string topic_name_;
+        std::string topic_name_;
     };
 }
 

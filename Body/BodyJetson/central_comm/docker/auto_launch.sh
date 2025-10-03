@@ -14,6 +14,9 @@ fi
 if [ ! -f "install/setup.bash" ] || [ -z "$(ls -A build 2>/dev/null)" ]; then
   echo "[auto_launch] Building xiao_bridge (symlink install)…"
   colcon build --symlink-install --packages-up-to xiao_bridge
+
+  echo "[auto_launch] Building body_mpu_reader…"
+  colcon build --symlink-install --packages-select body_mpu_reader
 else
   echo "[auto_launch] Using existing build/install."
 fi
@@ -48,9 +51,34 @@ run_bridge() {
   done
 }
 
+run_body_imu() {
+  local bus="${1:-7}"
+  local addr="${2:-0x68}"
+  local rate="${3:-50.0}"
+  local topic="${4:-Body/mpu}"
+  local logfile="${ROS_LOG_DIR}/body_mpu.log"
+
+  echo "[body_mpu] starting loop -> i2c_bus=${bus} i2c_addr=${addr} rate=${rate}Hz topic=${topic} (log: ${logfile})"
+
+  while true; do
+    echo "[body_mpu] $(date +'%F %T') starting process…"
+    stdbuf -oL -eL ros2 run body_mpu_reader body_mpu_node \
+      --ros-args -p i2c_bus:=${bus} -p i2c_address:=${addr} -p publish_rate:=${rate} -p topic_name:=${topic} \
+      >> "${logfile}" 2>&1 || true
+
+    rc=$?
+    echo "[body_mpu] $(date +'%F %T') exited (rc=${rc}); retrying in 2s…" | tee -a "${logfile}"
+    sleep 2
+  done
+}
+
 # Trap signals and forward to children
 pids=()
 trap 'echo "[auto_launch] signal received, stopping…"; kill "${pids[@]}" 2>/dev/null || true; wait; exit 0' INT TERM
+
+# Launch Body IMU first
+run_body_imu 7 0x68 50.0 "/Body/mpu" &
+pids+=($!)
 
 # Launches both bridges (independent retries)
 run_bridge left  "$ESP_L" "$PORT_L" "/leg_l" &

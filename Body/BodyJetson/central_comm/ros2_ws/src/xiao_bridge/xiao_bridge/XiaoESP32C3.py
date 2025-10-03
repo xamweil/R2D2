@@ -1,4 +1,4 @@
-
+import struct
 class XiaoESP32C3:
     def __init__(self, transport):
         self.transport = transport
@@ -18,25 +18,27 @@ class XiaoESP32C3:
 
     def get_temperature(self):
         resp = self.transport.send_frame(0x01, 0x01)
-        return unpack_temperature(resp)
+        return XiaoESP32C3.unpack_temperature(resp)
 
     def read_buffer(self):
         resp = self.transport.send_frame(0x01, 0x02)
         return self.unpack_sensor_data(resp)
-
-    def unpack_sensor_data(self, frame):
+    @staticmethod
+    def unpack_sensor_data(frame):
         if len(frame) != 18:                      # 2 (CID+FID) + 16 payload
             raise ValueError(f"expected 18 bytes, got {len(frame)}")
 
         payload = frame[2:]                       # drop CID, FID
 
         ax, ay, az, gx, gy, gz, ts = struct.unpack('<hhhhhhI', payload)
+        accel_scale_ = 2/32768  # g (±2g range)
+        gyro_scale_  =  250/32768 # dps (±250 dps range)
         return {
-            'accel': (ax, ay, az),
-            'gyro' : (gx, gy, gz),
+            'accel': [a*accel_scale_ for a in [ax, ay, az]],
+            'gyro' : [g*gyro_scale_ for g in [gx, gy, gz]],
             'ts_ms': ts
         }
-
+    @staticmethod
     def unpack_temperature(frame):
         if len(frame) != 6:
             raise ValueError(f"Expected 6 bytes (SOF+LEN+CID+FID+2), got {len(frame)}")
