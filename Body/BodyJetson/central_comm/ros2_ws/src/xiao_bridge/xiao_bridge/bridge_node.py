@@ -20,6 +20,7 @@ from rclpy.node import Node
 
 from tcp_msg.msg import MPU6500Sample
 from tcp_msg.srv import XiaoCmd
+from xiao_bridge.XiaoESP32C3 import XiaoESP32C3
 
 from xiao_bridge.Transport import (
     Transport,

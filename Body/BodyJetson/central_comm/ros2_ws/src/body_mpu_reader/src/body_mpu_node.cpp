@@ -66,18 +66,18 @@ namespace body_mpu_reader {
         }
 
         // Create publischer message
-        auto msg = create_mpu_message(data);
+        auto msg = create_mpu_msg(data);
         imu_publisher_->publish(msg);
     }
 
-    tcp::msg::MPU6500Sample BodyMPUNode::create_mpu_message(const IMUData &data) {
-        tcp::msg::MPU6500Sample msg;
+    tcp_msg::msg::MPU6500Sample BodyMPUNode::create_mpu_msg(const IMUData &data) {
+        tcp_msg::msg::MPU6500Sample msg;
 
         msg.accel[0] = data.accel_x;
         msg.accel[1] = data.accel_y;
         msg.accel[2] = data.accel_z;
 
-        mgs.gyro[0] = data.gyro_x;
+        msg.gyro[0] = data.gyro_x;
         msg.gyro[1] = data.gyro_y;
         msg.gyro[2] = data.gyro_z;
 

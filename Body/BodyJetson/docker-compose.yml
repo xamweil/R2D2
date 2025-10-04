@@ -19,7 +19,8 @@ services:
       #- /dev/ttyACM0:/dev/ttyACM0        # Pico 
       #- /dev/ttyUSB0:/dev/ttyUSB0        
       #- /dev/ttyUSB1:/dev/ttyUSB1        
-      # - /dev/i2c-1:/dev/i2c-1            # I²C
+      - /dev/i2c-7:/dev/i2c-7            # I²C
+
 
 volumes:
   central_comm_build: {}

@@ -1,6 +1,7 @@
 #ifndef BODY_MPU_READER_MPU6500_HPP_
 #define BODY_MPU_READER_MPU6500_HPP_
 
+#include <cstddef>
 #include <string>
 #include <cstdint>
 
@@ -36,10 +37,10 @@ constexpr uint8_t ACCEL_RANGE_16G = 0x18;
 
 struct IMUData
 {
-  double accel_x;  // m/s²
+  double accel_x;  // g
   double accel_y;
   double accel_z;
-  double gyro_x;   // rad/s
+  double gyro_x;   // dps
   double gyro_y;
   double gyro_z;
   double temp_c;   // Celsius
@@ -62,11 +63,11 @@ class MPU6500 {
         double gyro_scale_;
 
         bool open_device();
-        bool write_register(uint8_t reg, uint8_t value);
+        bool write_byte(uint8_t reg, uint8_t value);
         bool read_byte(uint8_t reg, uint8_t& value);
         bool read_bytes(uint8_t reg, uint8_t* buffer, size_t length);
 
         int16_t bytes_to_int16(uint8_t high, uint8_t low);
-}
 };
+}
 #endif
