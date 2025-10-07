@@ -11,12 +11,13 @@ if [ -n "${FORCE_REBUILD:-}" ]; then
 fi
 
 # Build only if needed (first run / clean tree)
+# Build only if needed
 if [ ! -f "install/setup.bash" ] || [ -z "$(ls -A build 2>/dev/null)" ]; then
-  echo "[auto_launch] Building xiao_bridge (symlink install)…"
-  colcon build --symlink-install --packages-up-to xiao_bridge
+  echo "[auto_launch] Building msg packages (symlink install)…"
+  colcon build --symlink-install --packages-select tcp_msg serial_msg
 
-  echo "[auto_launch] Building body_mpu_reader…"
-  colcon build --symlink-install --packages-select body_mpu_reader
+  echo "[auto_launch] Building nodes…"
+  colcon build --symlink-install --packages-select xiao_bridge body_mpu_reader
 else
   echo "[auto_launch] Using existing build/install."
 fi
