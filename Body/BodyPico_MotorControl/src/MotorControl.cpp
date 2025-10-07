@@ -10,11 +10,9 @@ Motor::Motor(const MotorConfig &config)
       pulse_pin_(config.pulse_pin),
       step_size_(config.step_size),
       stepper_(config.pulse_pin, 500, 0, false) {
-
     pinMode(pulse_pin_, OUTPUT);
     pinMode(enable_pin_, OUTPUT);
     pinMode(direction_pin_, OUTPUT);
-
     setEnabled(false);
 }
 

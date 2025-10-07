@@ -22,9 +22,9 @@ void SerialProcessor::listen() {
 
     while (Serial.available() < buffer_.size()) {
     }
+
     size_t bytes_read = Serial.readBytes(buffer_.data(), buffer_.size());
     if (bytes_read != buffer_.size()) {
-        // TODO: err
         return;
     }
 
@@ -32,13 +32,11 @@ void SerialProcessor::listen() {
     std::memcpy(&buttons_raw, buffer_.data(), sizeof(buttons_raw));
     auto &buttons = motor_control_.controller_state.buttons;
     for (size_t i = 0; i < buttons.size(); ++i) {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
         buttons[i] = (buttons_raw & (1 << i)) != 0;
     }
 
     auto &axes = motor_control_.controller_state.axes;
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    std::memcpy(axes.data(), buffer_.data() + sizeof(buttons_raw),
+    std::memcpy(axes.data(), &buffer_[sizeof(buttons_raw)],
                 NUM_AXES * sizeof(axes[0]));
 
     motor_control_.update();

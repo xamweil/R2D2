@@ -18,7 +18,7 @@ services:
       - "../Body/BodyPico_MotorControl/platformio.ini:/opt/pico/platformio.ini"
       - "../Body/BodyPico_MotorControl/build.py:/opt/pico/build.py"
       - "../Body/BodyPico_MotorControl/Justfile:/opt/pico/Justfile"
-    # devices:
-    #   - /dev/ttyACM0
-    #   - /dev/input/event5
+    devices:
+      - /dev/ttyACM0
+      - /dev/input/event5
     #   - /dev/serial/by-id/usb-Raspberry_Pi_Pico_E66358986392802D-if00

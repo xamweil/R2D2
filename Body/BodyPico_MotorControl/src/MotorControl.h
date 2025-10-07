@@ -71,8 +71,9 @@ public:
     [[nodiscard]] int32_t getFrequency() const;
 };
 
-struct MotorControl {
-    uint32_t last_update_;
+class MotorControl {
+public:
+    uint32_t last_update_{};
     ControllerState controller_state;
     Motor motor_mid_foot;
     Motor motor_head;

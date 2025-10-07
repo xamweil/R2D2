@@ -8,7 +8,6 @@
 class SerialProcessor {
 private:
     static constexpr uint8_t SOF_ = 0xAA;
-
     // Buttons (uint16) + Axes (NUM_AXES * float)
     static constexpr size_t BUF_SIZE_ = 2 + (NUM_AXES * 4);
 

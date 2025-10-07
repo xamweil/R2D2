@@ -4,5 +4,5 @@ Checks: >
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-pro-type-vararg
-
