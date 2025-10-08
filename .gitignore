@@ -8,6 +8,7 @@
 
 # Clangd cache
 **/.cache
+**/compile-commands.json
 
 # Python caches
 **/__pycache__/
