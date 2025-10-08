@@ -1,0 +1,23 @@
+services:
+    ros-serial:
+        user: root
+        build:
+            context: ./ros-serial
+            dockerfile: Dockerfile
+        image: headraspberry/ros-serial:latest
+        container_name: ros-serial
+        network_mode: host
+        restart: unless-stopped
+        environment:
+            - ROS_DOMAIN_ID=0
+            - ROS_LOG_DIR=/home/ros/.ros/log
+        volumes:
+        # Mount shared volume:
+        - ./ros-serial/src:/home/ros/ros2_ws/src:rw
+        - ./ros-serial/build:/home/ros/ros2_ws/build:rw
+        - ./ros-serial/install:/home/ros/ros2_ws/install:rw
+        - ./ros-serial/log:/home/ros/.ros/log:rw
+        devices:
+        - /dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_758343531313513150C1-if00 
+        - /dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_3FE8661E5154315432202020FF0B191E-if00 
+        - /dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_391D567A5153593336202020FF0A1625-if00 

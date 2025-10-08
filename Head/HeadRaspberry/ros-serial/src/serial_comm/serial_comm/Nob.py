@@ -5,7 +5,7 @@ class Nob:
         self.CID = address
         self.ser = serial_processor
         
-    def set_posX(self, angle_x, angle_y):
+    def set_pos(self, angle_x, angle_y):
         payload = struct.pack('>hh', angle_x, angle_y)
         response = self.ser.send_packet(self.CID, 0x01, payload)
         return response
@@ -24,7 +24,7 @@ class Nob:
         response = self.ser.send_packet(self.CID, 0x04)
         return response
     def run_circle(self):
-        response = self.ser.send_packet(CID, 0x05, timeout=3)
+        response = self.ser.send_packet(self.CID, 0x05, timeout=3)
         return response
     
         

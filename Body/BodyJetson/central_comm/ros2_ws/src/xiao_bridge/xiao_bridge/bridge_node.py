@@ -20,6 +20,7 @@ from rclpy.node import Node
 
 from tcp_msg.msg import MPU6500Sample
 from tcp_msg.srv import XiaoCmd
+from xiao_bridge.XiaoESP32C3 import XiaoESP32C3
 
 from xiao_bridge.Transport import (
     Transport,
@@ -34,14 +35,25 @@ class BridgeNode(Node):
         # ---- parameters -------------------------------------------------
         self.declare_parameter("ip",   "192.168.66.10")
         self.declare_parameter("port", 5010)
+        self.declare_parameter("publish_rate", 50)  # Hz
+        self.publish_rate = float(self.get_parameter("publish_rate").value)
         ip   = self.get_parameter("ip").get_parameter_value().string_value
         port = self.get_parameter("port").get_parameter_value().integer_value
         # -----------------------------------------------------------------
 
+        self._last_leg = None
+        self._last_foot = None
+        self._last_leg_ts_pub = -1
+        self._last_foot_ts_pub = -1 
         self.get_logger().info(f"Connecting to ESP32 at {ip}:{port} …")
         self.trans = Transport(ip, port)
         self.trans.set_sample_callback(self._on_sample)
         self.trans.set_taster_callback(self._on_taster)
+
+        # Timers to publish at a steady rate
+        period = 1.0 / max(self.publish_rate, 1.0)
+        self.create_timer(period, self._tick_leg)
+        self.create_timer(period, self._tick_foot)
 
         # publishers
         qos = 10
@@ -76,12 +88,27 @@ class BridgeNode(Node):
         msg.ts_ms = ts
 
         if cid == CID_SENSOR_LEG:
-            self.pub_leg.publish(msg)
+            self._last_leg = msg
         elif cid == CID_SENSOR_FOOT:
-            self.pub_foot.publish(msg)
+            self._last_foot = msg
         else:
             self.get_logger().warn(f"Unknown sensor CID 0x{cid:02X}")
 
+    def _tick_leg(self):
+        if self._last_leg is None:
+            return
+        # Avoid re-sending identical sample if the sensor runs slower than publish_rate
+        if self._last_leg.ts_ms != self._last_leg_ts_pub:
+            self.pub_leg.publish(self._last_leg)
+            self._last_leg_ts_pub = self._last_leg.ts_ms
+
+    def _tick_foot(self):
+        if self._last_foot is None:
+            return
+        if self._last_foot.ts_ms != self._last_foot_ts_pub:
+            self.pub_foot.publish(self._last_foot)
+            self._last_foot_ts_pub = self._last_foot.ts_ms
+            
     # ================== command service =================================
     def handle_cmd(self, request, response):
         try:

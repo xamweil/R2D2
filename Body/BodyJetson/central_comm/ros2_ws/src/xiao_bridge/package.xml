@@ -15,16 +15,11 @@
 
   <license>Apache-2.0</license>
 
-  <!-- TODO: remove this -->
-  <!-- Buildtool dependency: ament_python is required for Python‐based ROS2 packages -->
-  <!-- <buildtool_depend>ament_python</buildtool_depend> -->
-
   <!-- Runtime dependencies -->
   <depend>rclpy</depend>
   <depend>example_interfaces</depend>
   <depend>std_srvs</depend>
   <depend>tcp_msg</depend>
- 
   
   <!-- Export python only build type-->
   <export>

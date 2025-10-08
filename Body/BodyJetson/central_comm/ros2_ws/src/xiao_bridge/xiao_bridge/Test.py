@@ -27,8 +27,8 @@ from tcp_msg.msg import MPU6500Sample
 from rcl_interfaces.msg import Log as RosLog
 
 # Scale factors for MPU-6500 (assuming FS_SEL=0 for gyro, ±2g for accel)
-ACCEL_SCALE = 1.0 / 16384.0  # g per LSB
-GYRO_SCALE  = 1.0 / 131.0    # dps per LSB
+ACCEL_SCALE = 2/32768  # g per LSB
+GYRO_SCALE  = 250/32768    # dps per LSB
 
 # Consider a taster "ACTIVE" if we saw a press log within this many seconds
 TASTER_ACTIVE_WINDOW_S = 1.5
@@ -72,6 +72,14 @@ class XiaoDashboard(Node):
         # Listen to /rosout to catch “Taster 1 pressed” / “Taster 2 pressed”
         self.create_subscription(RosLog, "/rosout", self._on_log, qos)
 
+        # Body IMU 
+        self.body = TopicStats()
+        self.create_subscription(
+            MPU6500Sample, "/Body/mpu",
+            self._on_body_sample,
+            qos
+        )
+
         # Redraw timer (1 Hz)
         self.last_draw = time.monotonic()
         self.create_timer(1.0, self._draw_and_reset)
@@ -89,6 +97,15 @@ class XiaoDashboard(Node):
         stats.last_accel = (ax, ay, az)
         stats.last_gyro  = (gx, gy, gz)
         stats.last_ts_ms = msg.ts_ms
+
+    def _on_body_sample(self, msg: MPU6500Sample):
+        self.body.count += 1
+        # scale values
+        ax, ay, az = [a * ACCEL_SCALE for a in msg.accel]
+        gx, gy, gz = [g * GYRO_SCALE for g in msg.gyro]
+        self.body.last_accel = (ax, ay, az)
+        self.body.last_gyro  = (gx, gy, gz)
+        self.body.last_ts_ms = msg.ts_ms
 
     def _on_log(self, log: RosLog):
         # We expect messages like "Taster 1 pressed" from nodes:
@@ -139,6 +156,24 @@ class XiaoDashboard(Node):
             # Reset per-second counters
             st.leg.count = 0
             st.foot.count = 0
+
+        # ---- Body IMU (bottom section) ----
+        def fmt_vec_body(v):
+            if any(math.isnan(x) for x in v):
+                return "(no data)"
+            return f"({v[0]: .3f}, {v[1]: .3f}, {v[2]: .3f})"
+
+        lines.append("[Body]")
+        lines.append(
+            f"  Body : {self.body.count:3d} Hz | "
+            f"accel[g]={fmt_vec_body(self.body.last_accel)}  "
+            f"gyro[dps]={fmt_vec_body(self.body.last_gyro)}  "
+            f"ts={self.body.last_ts_ms}"
+        )
+        lines.append("")
+
+        # Reset per-second counter for body
+        self.body.count = 0
 
         # Draw
         self._clear_screen()

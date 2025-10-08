@@ -1,0 +1,5 @@
+string device_name
+string method_name
+int64[] args
+---
+string response

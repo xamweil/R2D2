@@ -1,0 +1,81 @@
+SERVICE := "ros-serial"
+COMPOSE := "docker compose"
+
+# Paths/vars
+ROS_SETUP := "/home/ros/ros2_ws/install/setup.bash"
+
+# build image
+build:
+    docker build -t headraspberry/{{SERVICE}}:latest ./{{SERVICE}}
+
+up: 
+    {{COMPOSE}} up -d 
+
+down:
+    {{COMPOSE}} down
+
+logs:
+    {{COMPOSE}} logs -f {{SERVICE}}
+
+# Exec a shell inside the service container
+sh:
+    docker exec -it {{SERVICE}} bash
+
+console-out:
+    tail -f central_comm/ros2_ws/log/*.log
+
+clean:
+    sudo rm -rf ./ros-serial/build \
+                ./ros-serial/install \
+                ./ros-serial/log
+
+# Clean rebuild
+rebuild: down clean build
+
+set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
+# Call the DeviceCommand service: just ssvc <device> <method> [args-json]
+ssvc device method args='[]':
+	@docker exec -it {{SERVICE}} bash -lc ' \
+		source {{ROS_SETUP}} && \
+		ros2 service call /serial_command serial_msg/srv/DeviceCommand \
+		  "{\"device_name\": \"{{device}}\", \"method_name\": \"{{method}}\", \"args\": {{args}}}" \
+	'
+
+# Convenience: lids
+lid-open device:
+	@just ssvc {{device}} open
+
+lid-close device:
+	@just ssvc {{device}} close
+
+# Convenience: nobs
+nob-run device:
+	@just ssvc {{device}} run_circle
+
+# ---- Groups ----
+# Bottom lids are lid1_1..lid1_6
+lids-bottom-open:
+	@for d in lid1_1 lid1_2 lid1_3 lid1_4 lid1_5 lid1_6; do \
+	  just ssvc "$d" open; \
+	done
+
+lids-bottom-close:
+	@for d in lid1_1 lid1_2 lid1_3 lid1_4 lid1_5 lid1_6; do \
+	  just ssvc "$d" close; \
+	done
+
+# Top lids are lid2_1..lid2_5
+lids-top-open:
+	@for d in lid2_1 lid2_2 lid2_3 lid2_4 lid2_5; do \
+	  just ssvc "$d" open; \
+	done
+
+lids-top-close:
+	@for d in lid2_1 lid2_2 lid2_3 lid2_4 lid2_5; do \
+	  just ssvc "$d" close; \
+	done
+
+nobs-run:
+    @for d in nob1 nob2 nob3; do \
+      just ssvc "$d" run_circle; \
+    done
