@@ -13,10 +13,10 @@ Motor::Motor(const MotorConfig &config)
     pinMode(pulse_pin_, OUTPUT);
     pinMode(enable_pin_, OUTPUT);
     pinMode(direction_pin_, OUTPUT);
-    setEnabled(false);
+    set_enabled(false);
 }
 
-void Motor::setFrequency(int32_t frequency) {
+void Motor::set_frequency(int32_t frequency) {
     frequency_ = frequency;
 
     if (frequency == 0) {
@@ -26,26 +26,40 @@ void Motor::setFrequency(int32_t frequency) {
     }
 };
 
-void Motor::setDirection(bool direction) {
+void Motor::set_direction(bool direction) {
     direction_ = direction;
     digitalWrite(direction_pin_, direction ? HIGH : LOW);
 }
 
-void Motor::setEnabled(bool enabled) {
+void Motor::set_enabled(bool enabled) {
     enabled_ = enabled;
     digitalWrite(enable_pin_, enabled ? LOW : HIGH);
 }
 
-[[nodiscard]] bool Motor::getDirection() const {
+[[nodiscard]] bool Motor::get_direction() const {
     return direction_;
 }
 
-[[nodiscard]] bool Motor::isEnabled() const {
+[[nodiscard]] bool Motor::is_enabled() const {
     return enabled_;
 }
 
-[[nodiscard]] int32_t Motor::getFrequency() const {
+[[nodiscard]] int32_t Motor::get_frequency() const {
     return frequency_;
+}
+
+MotorControl::MotorControl(Motors &motors) : motors_(motors) {
+    motors_.left_foot.set_direction(true);
+    motors_.right_foot.set_direction(false);
+    motors_.left_shoulder.set_direction(false);
+    motors_.right_shoulder.set_direction(true);
+
+    motors_.head.set_enabled(true);
+    motors_.mid_foot.set_enabled(true);
+    motors_.left_shoulder.set_enabled(true);
+    motors_.right_shoulder.set_enabled(true);
+    motors_.left_foot.set_enabled(true);
+    motors_.right_foot.set_enabled(true);
 }
 
 void MotorControl::update() {
@@ -53,10 +67,9 @@ void MotorControl::update() {
     const uint32_t dt = now - last_update_;
     last_update_ = now;
 
-    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-constant-array-index)
-    for (size_t i = 0; i < controller_state.buttons.size(); ++i) {
-        const bool &button = controller_state.buttons[i];
-        bool &prev_button = controller_state.prev_buttons[i];
+    for (size_t i = 0; i < controller_state_.buttons.size(); ++i) {
+        const bool &button = controller_state_.buttons[i];
+        bool &prev_button = controller_state_.prev_buttons[i];
 
         if (button == prev_button)
             continue;
@@ -66,22 +79,25 @@ void MotorControl::update() {
         if (button) {
             switch (i) {
             case 0: // CROSS
-                motor_left_foot.setFrequency(motor_left_foot.getFrequency() +
-                                             100);
-                motor_right_foot.setFrequency(motor_right_foot.getFrequency() +
-                                              100);
+                motors_.left_foot.set_frequency(
+                    motors_.left_foot.get_frequency() + 100);
+                motors_.right_foot.set_frequency(
+                    motors_.right_foot.get_frequency() + 100);
                 break;
             case 1: // CIRCLE
-                motor_left_foot.setFrequency(0);
-                motor_right_foot.setFrequency(0);
+                motors_.left_foot.set_frequency(0);
+                motors_.right_foot.set_frequency(0);
                 break;
             case 2: // SQUARE
-                motor_left_foot.setDirection(!motor_left_foot.getDirection());
-                motor_right_foot.setDirection(!motor_right_foot.getDirection());
+                motors_.left_foot.set_direction(
+                    !motors_.left_foot.get_direction());
+                motors_.right_foot.set_direction(
+                    !motors_.right_foot.get_direction());
                 break;
             case 3: // TRIANGLE
-                motor_left_foot.setEnabled(!motor_left_foot.isEnabled());
-                motor_right_foot.setEnabled(!motor_right_foot.isEnabled());
+                motors_.left_foot.set_enabled(!motors_.left_foot.is_enabled());
+                motors_.right_foot.set_enabled(
+                    !motors_.right_foot.is_enabled());
                 break;
             default:
                 break;
@@ -89,35 +105,35 @@ void MotorControl::update() {
         }
     }
 
-    float x = 0;
-    float y = 0;
-    float head_x = 0;
-
-    uint32_t freq_min = 500;
-    uint32_t freq_max = 5000;
-    uint32_t ramp_time = 2;
-    float max_change_per_second = 1.0 / ramp_time;
-    float max_change = max_change_per_second * dt;
-
-    float difference = 0;
-
-    for (size_t i = 0; i < controller_state.axes.size(); ++i) {
-        switch (i) {
-        case 0: // LEFT STICK X
-            x = controller_state.axes[i];
-            break;
-        case 1: // LEFT STICK Y
-            y = controller_state.axes[i];
-            break;
-        case 3: // RIGHT STICK X
-            head_x = controller_state.axes[i];
-            break;
-        default:
-            break;
-        }
-    }
-
-    auto angle = std::atan2(y, x) * (180 / PI);
+    // float x = 0;
+    // float y = 0;
+    // float head_x = 0;
+    //
+    // uint32_t freq_min = 500;
+    // uint32_t freq_max = 5000;
+    // uint32_t ramp_time = 2;
+    // float max_change_per_second = 1.0 / ramp_time;
+    // float max_change = max_change_per_second * dt;
+    //
+    // float difference = 0;
+    //
+    // for (size_t i = 0; i < controller_state_.axes.size(); ++i) {
+    //     switch (i) {
+    //     case 0: // LEFT STICK X
+    //         x = controller_state_.axes[i];
+    //         break;
+    //     case 1: // LEFT STICK Y
+    //         y = controller_state_.axes[i];
+    //         break;
+    //     case 3: // RIGHT STICK X
+    //         head_x = controller_state_.axes[i];
+    //         break;
+    //     default:
+    //         break;
+    //     }
+    // }
+    //
+    // auto angle = std::atan2(y, x) * (180 / PI);
 
     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
 }

@@ -61,26 +61,30 @@ private:
 
 public:
     explicit Motor(const MotorConfig &config);
+    void set_frequency(int32_t frequency);
+    void set_direction(bool direction);
+    void set_enabled(bool enabled);
+    [[nodiscard]] bool get_direction() const;
+    [[nodiscard]] bool is_enabled() const;
+    [[nodiscard]] int32_t get_frequency() const;
+};
 
-    void setFrequency(int32_t frequency);
-    void setDirection(bool direction);
-    void setEnabled(bool enabled);
-
-    [[nodiscard]] bool getDirection() const;
-    [[nodiscard]] bool isEnabled() const;
-    [[nodiscard]] int32_t getFrequency() const;
+struct Motors {
+    Motor mid_foot;
+    Motor head;
+    Motor left_shoulder;
+    Motor right_shoulder;
+    Motor left_foot;
+    Motor right_foot;
 };
 
 class MotorControl {
 public:
     uint32_t last_update_{};
-    ControllerState controller_state;
-    Motor motor_mid_foot;
-    Motor motor_head;
-    Motor motor_left_shoulder;
-    Motor motor_right_shoulder;
-    Motor motor_left_foot;
-    Motor motor_right_foot;
+    ControllerState controller_state_;
+    Motors
+        &motors_; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
 
+    explicit MotorControl(Motors &motors);
     void update();
 };
