@@ -49,17 +49,19 @@ void Motor::set_enabled(bool enabled) {
 }
 
 MotorControl::MotorControl(Motors &motors) : motors_(motors) {
-    motors_.left_foot.set_direction(true);
-    motors_.right_foot.set_direction(false);
-    motors_.left_shoulder.set_direction(false);
-    motors_.right_shoulder.set_direction(true);
+    motors_.left_foot.set_direction(false);
+    motors_.right_foot.set_direction(true);
+    motors_.left_shoulder.set_direction(true);
+    motors_.right_shoulder.set_direction(false);
 
-    motors_.head.set_enabled(true);
-    motors_.mid_foot.set_enabled(true);
+    // motors_.head.set_enabled(true);
+    // motors_.mid_foot.set_enabled(true);
     motors_.left_shoulder.set_enabled(true);
     motors_.right_shoulder.set_enabled(true);
-    motors_.left_foot.set_enabled(true);
-    motors_.right_foot.set_enabled(true);
+    // motors_.right_shoulder.set_frequency(0);
+    // motors_.left_shoulder.set_frequency(0);
+    // motors_.left_foot.set_enabled(true);
+    // motors_.right_foot.set_enabled(true);
 }
 
 void MotorControl::update() {
@@ -95,13 +97,41 @@ void MotorControl::update() {
                     !motors_.right_foot.get_direction());
                 break;
             case 3: // TRIANGLE
-                motors_.left_foot.set_enabled(!motors_.left_foot.is_enabled());
-                motors_.right_foot.set_enabled(
-                    !motors_.right_foot.is_enabled());
+                // motors_.head.set_enabled(!motors_.head.is_enabled());
+                // motors_.mid_foot.set_enabled(!motors_.mid_foot.is_enabled());
+                motors_.left_shoulder.set_enabled(
+                    !motors_.left_shoulder.is_enabled());
+                motors_.right_shoulder.set_enabled(
+                    !motors_.right_shoulder.is_enabled());
+                // motors_.left_foot.set_enabled(!motors_.left_foot.is_enabled());
+                // motors_.right_foot.set_enabled(
+                //     !motors_.right_foot.is_enabled());
                 break;
             default:
                 break;
             }
+        }
+    }
+
+    for (size_t i = 0; i < controller_state_.axes.size(); ++i) {
+        switch (i) {
+        case 6: // DPAD X
+            if (controller_state_.axes[i] > 0) {
+                motors_.left_shoulder.set_direction(true);
+                motors_.right_shoulder.set_direction(false);
+                motors_.left_shoulder.set_frequency(100);
+                motors_.right_shoulder.set_frequency(100);
+            } else if (controller_state_.axes[i] < 0) {
+                motors_.left_shoulder.set_direction(false);
+                motors_.right_shoulder.set_direction(true);
+                motors_.left_shoulder.set_frequency(100);
+                motors_.right_shoulder.set_frequency(100);
+            } else {
+                motors_.left_shoulder.set_frequency(0);
+                motors_.right_shoulder.set_frequency(0);
+            }
+        default:
+            break;
         }
     }
 

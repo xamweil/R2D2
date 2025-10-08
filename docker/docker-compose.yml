@@ -8,16 +8,14 @@ services:
     restart: unless-stopped
     environment:
       - OVERLAY_WS=/opt/ros/overlay_ws
-    # priviledged: true
     volumes:
-      - "../Body/BodyJetson/central_comm/src/:/opt/ros/overlay_ws/src/"
+      - "../Body/BodyJetson/central_comm/ros2_ws/src/:/opt/ros/overlay_ws/src/"
       - "../Body/BodyJetson/central_comm/Justfile:/opt/ros/overlay_ws/Justfile"
-
-      - "../Body/BodyPico_MotorControl/src/:/opt/pico/src/"
-      - "../Body/BodyPico_MotorControl/lib/:/opt/pico/lib/"
-      - "../Body/BodyPico_MotorControl/platformio.ini:/opt/pico/platformio.ini"
-      - "../Body/BodyPico_MotorControl/build.py:/opt/pico/build.py"
-      - "../Body/BodyPico_MotorControl/Justfile:/opt/pico/Justfile"
+      # - "../Body/BodyPico_MotorControl/src/:/opt/pico/src/"
+      # - "../Body/BodyPico_MotorControl/lib/:/opt/pico/lib/"
+      # - "../Body/BodyPico_MotorControl/platformio.ini:/opt/pico/platformio.ini"
+      # - "../Body/BodyPico_MotorControl/build.py:/opt/pico/build.py"
+      # - "../Body/BodyPico_MotorControl/Justfile:/opt/pico/Justfile"
     devices:
       - /dev/ttyACM0
       - /dev/input/event5

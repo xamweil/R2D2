@@ -6,6 +6,12 @@ default:
 deps:
     rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y
 
+build-motor-control:
+    colcon build --symlink-install --packages-select motor_control
+
+launch-motor-control:
+    . ./install/setup.sh && ros2 launch motor_control launch.py
+
 build packages="":
     #!/usr/bin/env bash
     if [ -n "{{packages}}" ]; then

@@ -7,7 +7,7 @@ def generate_launch_description():
             package='joy',
             executable='joy_node',
             output='screen',
-            parameters=[{'device_name': 'Wireless Controller'}]
+            # parameters=[{'device_name': 'PS4 Controller'}]
         ),
         Node(
             package='motor_control',

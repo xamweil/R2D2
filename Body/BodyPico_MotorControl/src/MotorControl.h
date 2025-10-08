@@ -7,7 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 
-static constexpr size_t NUM_BUTTONS = 13;
+static constexpr size_t NUM_BUTTONS = 14;
 static constexpr size_t NUM_AXES = 8;
 
 /// BUTTONS:

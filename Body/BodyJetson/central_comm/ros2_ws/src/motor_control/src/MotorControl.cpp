@@ -21,9 +21,6 @@ MotorControl::MotorControl() : Node("motor_control") {
 }
 
 void MotorControl::joy_callback(const sensor_msgs::msg::Joy &msg) {
-    static constexpr uint8_t NUM_BUTTONS = 13;
-    static constexpr uint8_t NUM_AXES = 8;
-
     if (!serial_.isConnected())
         return;
 
