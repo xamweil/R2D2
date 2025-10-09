@@ -63,6 +63,7 @@ MotorControl::MotorControl(Motors &motors) : motors_(motors) {
 }
 
 void MotorControl::update() {
+    Serial.println("Pico: update called.");
     const uint32_t now = millis();
     const uint32_t dt = now - last_update_;
     last_update_ = now;
