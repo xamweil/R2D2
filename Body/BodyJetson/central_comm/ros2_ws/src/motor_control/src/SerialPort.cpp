@@ -1,6 +1,7 @@
 #include "SerialPort.h"
 
 #include <fcntl.h>
+#include <rmw/types.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -22,12 +23,12 @@ bool SerialPort::connect(const char *port_name) {
     connected_ = false;
 
     if (serial_port_fd_ < 0) {
-        return connected_;
+        return false;
     }
 
     termios tty{};
     if (tcgetattr(serial_port_fd_, &tty) != 0) {
-        return connected_;
+        return false;
     }
 
     tty.c_cflag &= ~PARENB;        // No parity bit
@@ -63,7 +64,16 @@ bool SerialPort::connect(const char *port_name) {
         connected_ = true;
     }
 
+    if (connected_) {
+        listener_thread = std::thread(&SerialPort::listen, this);
+    }
+
     return connected_;
+}
+
+void SerialPort::listen() {
+    while (connected_) {
+    }
 }
 
 bool SerialPort::writeData(const uint8_t *data, size_t size) const {
@@ -85,12 +95,13 @@ std::string SerialPort::readData() const {
     return "";
 }
 
-void SerialPort::disconnect() const {
-    if (serial_port_fd_ >= 0) {
+void SerialPort::disconnect() {
+    if (connected_) {
+        connected_ = false;
         close(serial_port_fd_);
     }
 }
 
-[[nodiscard]] bool SerialPort::isConnected() const {
+[[nodiscard]] bool SerialPort::is_connected() const {
     return connected_;
 }

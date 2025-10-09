@@ -1,19 +1,22 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <string>
 #include <thread>
 
 class SerialPort {
 public:
-    bool connect(const char *port_name);
+    ~SerialPort();
     bool writeData(const uint8_t *data, size_t size) const;
     [[nodiscard]] std::string readData() const;
-    void disconnect() const;
-    [[nodiscard]] bool isConnected() const;
+    [[nodiscard]] bool is_connected() const;
+    bool connect(const char *port_name);
+    void disconnect();
+    void listen();
 
 private:
     std::thread listener_thread;
-    bool connected_ = false;
+    std::atomic<bool> connected_ = false;
     int serial_port_fd_{};
 };

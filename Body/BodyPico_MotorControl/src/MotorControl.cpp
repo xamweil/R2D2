@@ -128,6 +128,16 @@ void MotorControl::update() {
                 motors_.left_shoulder.set_frequency(0);
                 motors_.right_shoulder.set_frequency(0);
             }
+        case 7: // DPAD Y
+            if (controller_state_.axes[i] > 0) {
+                motors_.mid_foot.set_direction(true);
+                motors_.mid_foot.set_frequency(100);
+            } else if (controller_state_.axes[i] < 0) {
+                motors_.mid_foot.set_direction(false);
+                motors_.mid_foot.set_frequency(100);
+            } else {
+                motors_.mid_foot.set_frequency(0);
+            }
         default:
             break;
         }
