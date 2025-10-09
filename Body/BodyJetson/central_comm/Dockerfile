@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
 
 # Add python libs
 RUN pip3 install --no-cache-dir pyserial
+RUN pip3 install dalybms
 
 # Entrypoint scripts you created in central_comm/docker/
 COPY docker/ros_entrypoint.sh /usr/local/bin/ros_entrypoint.sh

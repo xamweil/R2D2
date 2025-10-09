@@ -19,6 +19,5 @@ services:
       - ./central_comm/ros2_ws/log:/home/ros/.ros/log:rw
     devices:
       #- /dev/ttyACM0:/dev/ttyACM0        # Pico 
-      #- /dev/ttyUSB0:/dev/ttyUSB0        
-      #- /dev/ttyUSB1:/dev/ttyUSB1        
+      - dev/serial/by-id/usb-1a86_USB_Serial-if00-port0 # right BMS
       - /dev/i2c-7:/dev/i2c-7            # I²C

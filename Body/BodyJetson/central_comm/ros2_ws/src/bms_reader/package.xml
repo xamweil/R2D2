@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="3">
+
+<name>bms_reader</name>
+
+<version>0.1.0</version>
+
+<description>
+    ROS2 node for reading data from a BMS via UART.
+</description>
+
+<maintainer email="max.eberhard@gmx.net">Max</maintainer>
+
+<license>Apache-2.0</license>
+
+<!-- Runtime dependencies -->
+<depend>rclpy</depend>
+<depend>sensor_msgs</depend>
+ <!-- Export python only build type-->
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
