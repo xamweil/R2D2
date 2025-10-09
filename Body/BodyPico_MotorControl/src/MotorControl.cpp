@@ -9,7 +9,7 @@ Motor::Motor(const MotorConfig &config)
       direction_pin_(config.direction_pin),
       pulse_pin_(config.pulse_pin),
       step_size_(config.step_size),
-      stepper_(config.pulse_pin, 500, 0, false) {
+      stepper_(config.pulse_pin, 0, 0, false) {
     pinMode(pulse_pin_, OUTPUT);
     pinMode(enable_pin_, OUTPUT);
     pinMode(direction_pin_, OUTPUT);
@@ -20,7 +20,7 @@ void Motor::set_frequency(int32_t frequency) {
     frequency_ = frequency;
 
     if (frequency == 0) {
-        stepper_.setPWM(pulse_pin_, 500, 0);
+        stepper_.setPWM(pulse_pin_, 0, 0);
     } else {
         stepper_.setPWM(pulse_pin_, static_cast<float>(frequency), 50);
     }
@@ -54,14 +54,12 @@ MotorControl::MotorControl(Motors &motors) : motors_(motors) {
     motors_.left_shoulder.set_direction(true);
     motors_.right_shoulder.set_direction(false);
 
-    // motors_.head.set_enabled(true);
-    // motors_.mid_foot.set_enabled(true);
+    motors_.head.set_enabled(true);
+    motors_.mid_foot.set_enabled(true);
     motors_.left_shoulder.set_enabled(true);
     motors_.right_shoulder.set_enabled(true);
-    // motors_.right_shoulder.set_frequency(0);
-    // motors_.left_shoulder.set_frequency(0);
-    // motors_.left_foot.set_enabled(true);
-    // motors_.right_foot.set_enabled(true);
+    motors_.left_foot.set_enabled(true);
+    motors_.right_foot.set_enabled(true);
 }
 
 void MotorControl::update() {
@@ -97,15 +95,15 @@ void MotorControl::update() {
                     !motors_.right_foot.get_direction());
                 break;
             case 3: // TRIANGLE
-                // motors_.head.set_enabled(!motors_.head.is_enabled());
-                // motors_.mid_foot.set_enabled(!motors_.mid_foot.is_enabled());
+                motors_.head.set_enabled(!motors_.head.is_enabled());
+                motors_.mid_foot.set_enabled(!motors_.mid_foot.is_enabled());
                 motors_.left_shoulder.set_enabled(
                     !motors_.left_shoulder.is_enabled());
                 motors_.right_shoulder.set_enabled(
                     !motors_.right_shoulder.is_enabled());
-                // motors_.left_foot.set_enabled(!motors_.left_foot.is_enabled());
-                // motors_.right_foot.set_enabled(
-                //     !motors_.right_foot.is_enabled());
+                motors_.left_foot.set_enabled(!motors_.left_foot.is_enabled());
+                motors_.right_foot.set_enabled(
+                    !motors_.right_foot.is_enabled());
                 break;
             default:
                 break;
