@@ -14,13 +14,13 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
-include(FetchContent)
-FetchContent_Declare(
-  serial
-  GIT_REPOSITORY https://github.com/RoverRobotics-forks/serial-ros2.git
-  GIT_TAG        ae46504ae7d4a199ea9bba0e73a6f083bf172f80
-)
-FetchContent_MakeAvailable(serial)
+# include(FetchContent)
+# FetchContent_Declare(
+#   serial
+#   GIT_REPOSITORY https://github.com/RoverRobotics-forks/serial-ros2.git
+#   GIT_TAG        ae46504ae7d4a199ea9bba0e73a6f083bf172f80
+# )
+# FetchContent_MakeAvailable(serial)
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 # target_include_directories(${PROJECT_NAME} PRIVATE src)
@@ -28,11 +28,11 @@ file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 ament_target_dependencies(${PROJECT_NAME} rclcpp sensor_msgs)
-target_link_libraries(${PROJECT_NAME} serial)
-
-target_include_directories(${PROJECT_NAME} PRIVATE
-  $<BUILD_INTERFACE:${serial_SOURCE_DIR}/include>
-)
+# target_link_libraries(${PROJECT_NAME} serial)
+#
+# target_include_directories(${PROJECT_NAME} PRIVATE
+#   $<BUILD_INTERFACE:${serial_SOURCE_DIR}/include>
+# )
 
 install(TARGETS
   ${PROJECT_NAME} 

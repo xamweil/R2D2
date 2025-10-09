@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <thread>
 
 class SerialPort {
 public:
@@ -12,6 +13,7 @@ public:
     [[nodiscard]] bool isConnected() const;
 
 private:
+    std::thread listener_thread;
     bool connected_ = false;
     int serial_port_fd_{};
 };

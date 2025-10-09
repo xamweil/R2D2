@@ -10,7 +10,8 @@ build-motor-control:
     colcon build --symlink-install --packages-select motor_control
 
 launch-motor-control:
-    source ./install/setup.sh && ros2 launch motor_control launch.py
+    #!/usr/bin/env bash
+    source ./install/setup.bash && ros2 launch motor_control launch.py
 
 build packages="":
     #!/usr/bin/env bash
