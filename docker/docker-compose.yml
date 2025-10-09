@@ -10,7 +10,7 @@ services:
       - OVERLAY_WS=/opt/ros/overlay_ws
     volumes:
       - "../Body/BodyJetson/central_comm/ros2_ws/src/:/opt/ros/overlay_ws/src/"
-      - "../Body/BodyJetson/central_comm/Justfile:/opt/ros/overlay_ws/Justfile"
+      - "../Body/BodyJetson/central_comm/ros2_ws/Justfile:/opt/ros/overlay_ws/Justfile"
       # - "../Body/BodyPico_MotorControl/src/:/opt/pico/src/"
       # - "../Body/BodyPico_MotorControl/lib/:/opt/pico/lib/"
       # - "../Body/BodyPico_MotorControl/platformio.ini:/opt/pico/platformio.ini"
