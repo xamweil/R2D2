@@ -36,6 +36,14 @@ void Motor::set_enabled(bool enabled) {
     digitalWrite(enable_pin_, enabled ? LOW : HIGH);
 }
 
+void Motor::toggle_direction() {
+    set_direction(!direction_);
+}
+
+void Motor::toggle_enabled() {
+    set_enabled(!enabled_);
+}
+
 [[nodiscard]] bool Motor::get_direction() const {
     return direction_;
 }
@@ -98,21 +106,16 @@ void MotorControl::update() {
                 motors_.right_foot.set_frequency(0);
                 break;
             case 2: // SQUARE
-                motors_.left_foot.set_direction(
-                    !motors_.left_foot.get_direction());
-                motors_.right_foot.set_direction(
-                    !motors_.right_foot.get_direction());
+                motors_.left_foot.toggle_direction();
+                motors_.right_foot.toggle_direction();
                 break;
             case 3: // TRIANGLE
-                motors_.head.set_enabled(!motors_.head.is_enabled());
-                motors_.mid_foot.set_enabled(!motors_.mid_foot.is_enabled());
-                motors_.left_shoulder.set_enabled(
-                    !motors_.left_shoulder.is_enabled());
-                motors_.right_shoulder.set_enabled(
-                    !motors_.right_shoulder.is_enabled());
-                motors_.left_foot.set_enabled(!motors_.left_foot.is_enabled());
-                motors_.right_foot.set_enabled(
-                    !motors_.right_foot.is_enabled());
+                motors_.head.toggle_enabled();
+                motors_.mid_foot.toggle_enabled();
+                motors_.left_shoulder.toggle_enabled();
+                motors_.right_shoulder.toggle_enabled();
+                motors_.left_foot.toggle_enabled();
+                motors_.right_foot.toggle_enabled();
                 break;
             default:
                 break;
@@ -121,28 +124,23 @@ void MotorControl::update() {
     }
 
     for (size_t i = 0; i < controller_state_.axes.size(); ++i) {
+        auto &axis_value = controller_state_.axes[i];
         switch (i) {
         case 6: // DPAD X
-            if (controller_state_.axes[i] > 0) {
-                motors_.left_shoulder.set_direction(true);
-                motors_.right_shoulder.set_direction(false);
-                motors_.left_shoulder.set_frequency(100);
-                motors_.right_shoulder.set_frequency(100);
-            } else if (controller_state_.axes[i] < 0) {
-                motors_.left_shoulder.set_direction(false);
-                motors_.right_shoulder.set_direction(true);
+            if (axis_value != 0) {
+                motors_.left_shoulder.set_direction(axis_value > 0);
+                motors_.right_shoulder.set_direction(axis_value < 0);
                 motors_.left_shoulder.set_frequency(100);
                 motors_.right_shoulder.set_frequency(100);
             } else {
-                motors_.left_shoulder.set_frequency(0);
-                motors_.right_shoulder.set_frequency(0);
+                motors_.left_shoulder.set_frequency(100);
+                motors_.right_shoulder.set_frequency(100);
             }
+            break;
         case 7: // DPAD Y
-            if (controller_state_.axes[i] > 0) {
-                motors_.mid_foot.set_direction(true);
-                motors_.mid_foot.set_frequency(100);
-            } else if (controller_state_.axes[i] < 0) {
-                motors_.mid_foot.set_direction(false);
+            if (axis_value != 0) {
+                motors_.mid_foot.set_direction(axis_value > 0);
+                motors_.mid_foot.set_direction(axis_value < 0);
                 motors_.mid_foot.set_frequency(100);
             } else {
                 motors_.mid_foot.set_frequency(0);

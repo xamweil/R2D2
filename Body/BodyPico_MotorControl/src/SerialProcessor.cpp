@@ -14,9 +14,6 @@ SerialProcessor::SerialProcessor(MotorControl *motor_control)
 }
 
 void SerialProcessor::listen() {
-    while (!initialized) {
-    }
-
     while (true) {
         while (Serial.available() == 0) {
         }
@@ -36,6 +33,7 @@ void SerialProcessor::listen() {
     uint16_t buttons_raw = 0;
     std::memcpy(&buttons_raw, buffer_.data(), sizeof(buttons_raw));
     auto &buttons = motor_control_->controller_state_.buttons;
+
     for (size_t i = 0; i < buttons.size(); ++i) {
         buttons[i] = (buttons_raw & (1 << i)) != 0;
     }

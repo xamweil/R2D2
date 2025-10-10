@@ -10,30 +10,33 @@
 static constexpr size_t NUM_BUTTONS = 14;
 static constexpr size_t NUM_AXES = 8;
 
-/// BUTTONS:
-///  0 CROSS
-///  1 CIRCLE
-///  2 SQUARE
-///  3 TRIANGLE
-///  4 LEFT SHOULDER
-///  5 RIGHT SHOULDER
-///  6 LEFT TRIGGER
-///  7 RIGHT TRIGGER
-///  8 SHARE
-///  9 OPTIONS
-/// 10 HOME
-/// 11 LEFT STICK
-/// 12 RIGHT STICK
-///
-/// AXES:
-/// 0 LEFT STICK X
-/// 1 LEFT STICK Y
-/// 2 LEFT TRIGGER
-/// 3 RIGHT STICK X
-/// 4 RIGHT STICK Y
-/// 5 RIGHT TRIGGER
-/// 6 DPAD X
-/// 7 DPAD Y
+/*
+ * BUTTONS:
+ *  0 CROSS,
+ *  1 CIRCLE,
+ *  2 SQUARE,
+ *  3 TRIANGLE,
+ *  4 LEFT SHOULDER,
+ *  5 RIGHT SHOULDER,
+ *  6 LEFT TRIGGER,
+ *  7 RIGHT TRIGGER,
+ *  8 SHARE,
+ *  9 OPTIONS,
+ * 10 HOME,
+ * 11 LEFT STICK,
+ * 12 RIGHT STICK,
+ * 13 TOUCHPAD
+ *
+ * AXES:
+ *  0 LEFT STICK X,
+ *  1 LEFT STICK Y,
+ *  2 LEFT TRIGGER,
+ *  3 RIGHT STICK X,
+ *  4 RIGHT STICK Y,
+ *  5 RIGHT TRIGGER,
+ *  6 DPAD X,
+ *  7 DPAD Y
+ */
 struct ControllerState {
     std::array<bool, NUM_BUTTONS> buttons{};
     std::array<bool, NUM_BUTTONS> prev_buttons{};
@@ -64,9 +67,11 @@ public:
     void set_frequency(int32_t frequency);
     void set_direction(bool direction);
     void set_enabled(bool enabled);
+    void toggle_direction();
+    void toggle_enabled();
+    [[nodiscard]] int32_t get_frequency() const;
     [[nodiscard]] bool get_direction() const;
     [[nodiscard]] bool is_enabled() const;
-    [[nodiscard]] int32_t get_frequency() const;
 };
 
 struct Motors {
