@@ -43,4 +43,5 @@ void SerialProcessor::listen() {
                 NUM_AXES * sizeof(axes[0]));
 
     motor_control_->update();
+    Serial.println("PACKET PROCESSED!");
 }

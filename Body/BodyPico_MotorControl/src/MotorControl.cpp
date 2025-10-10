@@ -9,7 +9,7 @@ Motor::Motor(const MotorConfig &config)
       direction_pin_(config.direction_pin),
       pulse_pin_(config.pulse_pin),
       step_size_(config.step_size),
-      stepper_(config.pulse_pin, 0, 0, false) {
+      stepper_(config.pulse_pin, 100, 0, false) {
     pinMode(pulse_pin_, OUTPUT);
     pinMode(enable_pin_, OUTPUT);
     pinMode(direction_pin_, OUTPUT);
@@ -20,7 +20,7 @@ void Motor::set_frequency(int32_t frequency) {
     frequency_ = frequency;
 
     if (frequency == 0) {
-        stepper_.setPWM(pulse_pin_, 0, 0);
+        stepper_.setPWM(pulse_pin_, 100, 0);
     } else {
         stepper_.setPWM(pulse_pin_, static_cast<float>(frequency), 50);
     }
@@ -76,7 +76,7 @@ MotorControl::MotorControl(const MotorsConfigs &motors_configs)
     motors_.left_shoulder.set_enabled(false);
     motors_.right_shoulder.set_enabled(false);
     motors_.left_foot.set_enabled(false);
-    motors_.right_foot.set_enabled(true);
+    motors_.right_foot.set_enabled(false);
 }
 
 void MotorControl::update() {
@@ -123,28 +123,31 @@ void MotorControl::update() {
         }
     }
 
+    static constexpr float AXIS_DEADZONE = 0.01F;
+
     for (size_t i = 0; i < controller_state_.axes.size(); ++i) {
         auto &axis_value = controller_state_.axes[i];
         switch (i) {
         case 6: // DPAD X
-            if (axis_value != 0) {
+            if (std::abs(axis_value) > AXIS_DEADZONE) {
                 motors_.left_shoulder.set_direction(axis_value > 0);
                 motors_.right_shoulder.set_direction(axis_value < 0);
                 motors_.left_shoulder.set_frequency(100);
                 motors_.right_shoulder.set_frequency(100);
             } else {
-                motors_.left_shoulder.set_frequency(100);
-                motors_.right_shoulder.set_frequency(100);
+                motors_.left_shoulder.set_frequency(0);
+                motors_.right_shoulder.set_frequency(0);
             }
             break;
         case 7: // DPAD Y
-            if (axis_value != 0) {
-                motors_.mid_foot.set_direction(axis_value > 0);
+            if (std::abs(axis_value) > AXIS_DEADZONE) {
                 motors_.mid_foot.set_direction(axis_value < 0);
+                motors_.mid_foot.set_direction(axis_value > 0);
                 motors_.mid_foot.set_frequency(100);
             } else {
                 motors_.mid_foot.set_frequency(0);
             }
+            break;
         default:
             break;
         }
