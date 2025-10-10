@@ -1,14 +1,18 @@
 #include "MotorControl.h"
 
+#include "SerialPort.h"
+
 #include <rclcpp/logging.hpp>
 
 #include <cstdint>
 #include <cstring>
 
-MotorControl::MotorControl() : Node("motor_control") {
+MotorControl::MotorControl()
+    : Node("motor_control"),
+      serial_(this->get_logger()) {
     serial_.connect("/dev/ttyACM0");
 
-    if (!serial_.isConnected()) {
+    if (!serial_.is_connected()) {
         RCLCPP_WARN(this->get_logger(), "Serial: failed to connect to pico");
     } else {
         RCLCPP_INFO(this->get_logger(), "Serial: connected to pico");
@@ -21,7 +25,7 @@ MotorControl::MotorControl() : Node("motor_control") {
 }
 
 void MotorControl::joy_callback(const sensor_msgs::msg::Joy &msg) {
-    if (!serial_.isConnected())
+    if (!serial_.is_connected())
         return;
 
     if (msg.buttons.size() != NUM_BUTTONS || msg.axes.size() != NUM_AXES) {

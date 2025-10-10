@@ -1,6 +1,8 @@
 #include "SerialPort.h"
 
 #include <fcntl.h>
+#include <rclcpp/logger.hpp>
+#include <rclcpp/logging.hpp>
 #include <rmw/types.h>
 #include <termios.h>
 #include <unistd.h>
@@ -9,12 +11,16 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <string>
 
 /*
  * References:
  * https://tldp.org/HOWTO/Serial-Programming-HOWTO/index.html
  * https://blog.mbedded.ninja/programming/operating-systems/linux/linux-serial-ports-using-c-cpp/
  */
+
+SerialPort::SerialPort(const rclcpp::Logger &logger) : logger_(logger) {
+}
 
 bool SerialPort::connect(const char *port_name) {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
@@ -71,8 +77,43 @@ bool SerialPort::connect(const char *port_name) {
     return connected_;
 }
 
+std::string SerialPort::read_line() {
+    std::string read_buffer_;
+    std::array<char, 256> temp_buffer{};
+
+    while (connected_) {
+        ssize_t bytes_read =
+            read(serial_port_fd_, temp_buffer.data(), temp_buffer.size());
+
+        if (bytes_read > 0) {
+            read_buffer_.append(temp_buffer.data(), bytes_read);
+
+            size_t newline_pos = read_buffer_.find('\n');
+            if (newline_pos != std::string::npos) {
+                std::string line = read_buffer_.substr(0, newline_pos);
+                read_buffer_.erase(0, newline_pos + 1);
+
+                // Handle carriage return if present
+                if (!line.empty() && line.back() == '\r') {
+                    line.pop_back();
+                }
+                return line;
+            }
+        } else if (bytes_read == 0) {
+            // Timeout based on VTIME setting
+            continue;
+        } else {
+            // Error occurred
+            break;
+        }
+    }
+    return "";
+}
+
 void SerialPort::listen() {
     while (connected_) {
+        std::string line = read_line();
+        RCLCPP_INFO(logger_, "%s", line.c_str());
     }
 }
 

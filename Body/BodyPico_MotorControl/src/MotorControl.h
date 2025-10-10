@@ -78,13 +78,21 @@ struct Motors {
     Motor right_foot;
 };
 
+struct MotorsConfigs {
+    MotorConfig mid_foot;
+    MotorConfig head;
+    MotorConfig left_shoulder;
+    MotorConfig right_shoulder;
+    MotorConfig left_foot;
+    MotorConfig right_foot;
+};
+
 class MotorControl {
 public:
     uint32_t last_update_{};
     ControllerState controller_state_;
-    Motors
-        &motors_; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    Motors motors_;
 
-    explicit MotorControl(Motors &motors);
+    explicit MotorControl(const MotorsConfigs &motors_configs);
     void update();
 };

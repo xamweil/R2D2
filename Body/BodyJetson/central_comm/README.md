@@ -22,6 +22,15 @@ docker-compose exec motor-control bash
 
 ## controller setup
 
+```sh
+#!/usr/bin/env bash
+
+MAC="70:20:84:64:07:2C"
+bluetoothctl pair "$MAC"
+bluetoothctl trust "$MAC"
+bluetoothctl connect "$MAC"
+```
+
 find the controller's unique identifiers:
 
 ```sh

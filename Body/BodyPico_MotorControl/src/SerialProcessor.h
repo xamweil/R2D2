@@ -12,11 +12,11 @@ private:
     static constexpr size_t BUF_SIZE_ = 2 + (NUM_AXES * 4);
 
     std::array<uint8_t, BUF_SIZE_> buffer_ = {};
-    MotorControl &
-        motor_control_; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+    bool initialized = false;
+    MotorControl *motor_control_;
 
 public:
-    explicit SerialProcessor(MotorControl &motor_control);
-
+    // explicit SerialProcessor(const MotorsConfigs &motors_configs);
+    explicit SerialProcessor(MotorControl *motor_control);
     void listen();
 };

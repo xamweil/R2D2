@@ -1,5 +1,7 @@
 #include "SerialProcessor.h"
 
+#include "MotorControl.h"
+
 #include <Arduino.h>
 
 #include <cassert>
@@ -7,11 +9,14 @@
 #include <cstdint>
 #include <cstring>
 
-SerialProcessor::SerialProcessor(MotorControl &motor_control)
+SerialProcessor::SerialProcessor(MotorControl *motor_control)
     : motor_control_(motor_control) {
 }
 
 void SerialProcessor::listen() {
+    while (!initialized) {
+    }
+
     while (true) {
         while (Serial.available() == 0) {
         }
@@ -30,14 +35,14 @@ void SerialProcessor::listen() {
 
     uint16_t buttons_raw = 0;
     std::memcpy(&buttons_raw, buffer_.data(), sizeof(buttons_raw));
-    auto &buttons = motor_control_.controller_state_.buttons;
+    auto &buttons = motor_control_->controller_state_.buttons;
     for (size_t i = 0; i < buttons.size(); ++i) {
         buttons[i] = (buttons_raw & (1 << i)) != 0;
     }
 
-    auto &axes = motor_control_.controller_state_.axes;
+    auto &axes = motor_control_->controller_state_.axes;
     std::memcpy(axes.data(), &buffer_[sizeof(buttons_raw)],
                 NUM_AXES * sizeof(axes[0]));
 
-    motor_control_.update();
+    motor_control_->update();
 }

@@ -23,6 +23,6 @@ private:
     void joy_callback(const sensor_msgs::msg::Joy &msg);
 
     rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr subscription_;
-    SerialPort serial_{};
+    SerialPort serial_;
     std::array<uint8_t, PKT_SIZE> packet_ = {0xAA};
 };

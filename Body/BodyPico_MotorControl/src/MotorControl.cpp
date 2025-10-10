@@ -48,22 +48,30 @@ void Motor::set_enabled(bool enabled) {
     return frequency_;
 }
 
-MotorControl::MotorControl(Motors &motors) : motors_(motors) {
+MotorControl::MotorControl(const MotorsConfigs &motors_configs)
+    : motors_({
+          .mid_foot = Motor(motors_configs.mid_foot),
+          .head = Motor(motors_configs.head),
+          .left_shoulder = Motor(motors_configs.left_shoulder),
+          .right_shoulder = Motor(motors_configs.right_shoulder),
+          .left_foot = Motor(motors_configs.left_foot),
+          .right_foot = Motor(motors_configs.right_foot),
+      }) {
+
     motors_.left_foot.set_direction(false);
     motors_.right_foot.set_direction(true);
     motors_.left_shoulder.set_direction(true);
     motors_.right_shoulder.set_direction(false);
 
-    motors_.head.set_enabled(true);
-    motors_.mid_foot.set_enabled(true);
-    motors_.left_shoulder.set_enabled(true);
-    motors_.right_shoulder.set_enabled(true);
-    motors_.left_foot.set_enabled(true);
+    motors_.head.set_enabled(false);
+    motors_.mid_foot.set_enabled(false);
+    motors_.left_shoulder.set_enabled(false);
+    motors_.right_shoulder.set_enabled(false);
+    motors_.left_foot.set_enabled(false);
     motors_.right_foot.set_enabled(true);
 }
 
 void MotorControl::update() {
-    Serial.println("Pico: update called.");
     const uint32_t now = millis();
     const uint32_t dt = now - last_update_;
     last_update_ = now;
