@@ -7,9 +7,7 @@
 #include <cstdint>
 #include <cstring>
 
-MotorControl::MotorControl()
-    : Node("motor_control"),
-      serial_(this->get_logger()) {
+MotorControl::MotorControl() : Node("motor_control") {
     serial_.connect("/dev/ttyACM0");
 
     if (!serial_.is_connected()) {

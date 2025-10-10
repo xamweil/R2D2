@@ -19,7 +19,7 @@
  * https://blog.mbedded.ninja/programming/operating-systems/linux/linux-serial-ports-using-c-cpp/
  */
 
-SerialPort::SerialPort(const rclcpp::Logger &logger) : logger_(logger) {
+SerialPort::SerialPort() : logger_(rclcpp::get_logger("serial")) {
 }
 
 bool SerialPort::connect(const char *port_name) {
