@@ -17,7 +17,7 @@ if [ ! -f "install/setup.bash" ] || [ -z "$(ls -A build 2>/dev/null)" ]; then
   colcon build --symlink-install --packages-select tcp_msg serial_msg
 
   echo "[auto_launch] Building nodes…"
-  colcon build --symlink-install --packages-select xiao_bridge body_mpu_reader
+  colcon build --symlink-install --packages-select xiao_bridge body_mpu_reader bms_reader
 else
   echo "[auto_launch] Using existing build/install."
 fi

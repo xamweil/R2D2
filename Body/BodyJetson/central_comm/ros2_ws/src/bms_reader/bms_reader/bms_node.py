@@ -10,14 +10,14 @@ class BMSNode(Node):
         super().__init__("bms_node")
 
         # ---- parameters -------------------------------------------------
-        self.declare_parameter("device", "/dev/serial/by-id/usb-1a86_USB_Serial-if00-port0")  
+        self.declare_parameter("device", "/dev/serial/by-path/platform-3610000.usb-usb-0:2.2:1.0-port0")  # right BMS
         self.declare_parameter("publish_rate", 2) # Hz
         self.publish_rate = float(self.get_parameter("publish_rate").value)
         device = self.get_parameter("device").get_parameter_value().string_value
 
         # -----------------------------------------------------------------
 
-        self.get_logger().info(f"Connecting to BMS at {port} …")
+        self.get_logger().info(f"Connecting to BMS at {device} …")
         self.bms = BMS(device=device)
 
         self.timer = self.create_timer(1.0 / max(self.publish_rate, 1.0), self.update)

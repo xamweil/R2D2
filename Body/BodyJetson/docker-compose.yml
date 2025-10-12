@@ -18,6 +18,11 @@ services:
       - ./central_comm/ros2_ws/install:/home/ros/ros2_ws/install:rw
       - ./central_comm/ros2_ws/log:/home/ros/.ros/log:rw
     devices:
-      #- /dev/ttyACM0:/dev/ttyACM0        # Pico 
-      - dev/serial/by-id/usb-1a86_USB_Serial-if00-port0 # right BMS
+      #- platform-3610000.usb-usb-0:2.1:1.0        # Pico 
+      - type: c
+        path: "/dev/serial/by-path/platform-3610000.usb-usb-0:2.2:1.0-port0"
+        cgroup_permissions: "rwm"
+      - type: c
+        path: "/dev/serial/by-path/platform-3610000.usb-usb-0:2.4:1.0-port0"
+        cgroup_permissions: "rwm"
       - /dev/i2c-7:/dev/i2c-7            # I²C
