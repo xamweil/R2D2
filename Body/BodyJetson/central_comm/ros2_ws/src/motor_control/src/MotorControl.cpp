@@ -46,9 +46,6 @@ void MotorControl::joy_callback(const sensor_msgs::msg::Joy &msg) {
     std::memcpy(&packet_[axes_offset], msg.axes.data(),
                 msg.axes.size() * sizeof(msg.axes[0]));
 
-    if (serial_.writeData(packet_.data(), packet_.size())) {
-        RCLCPP_INFO(this->get_logger(), "Serial write success");
-    } else {
+    if (!serial_.write_data(packet_.data(), packet_.size()))
         RCLCPP_WARN(this->get_logger(), "Serial write failed");
-    }
 }

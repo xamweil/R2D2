@@ -128,6 +128,15 @@ void MotorControl::update() {
     for (size_t i = 0; i < controller_state_.axes.size(); ++i) {
         auto &axis_value = controller_state_.axes[i];
         switch (i) {
+        case 0: // LEFT STICK X
+            // x = controller_state_.axes[i];
+            break;
+        case 1: // LEFT STICK Y
+            // y = controller_state_.axes[i];
+            break;
+        case 3: // RIGHT STICK X
+            // head_x = controller_state_.axes[i];
+            break;
         case 6: // DPAD X
             if (std::abs(axis_value) > AXIS_DEADZONE) {
                 motors_.left_shoulder.set_direction(axis_value > 0);
@@ -141,9 +150,8 @@ void MotorControl::update() {
             break;
         case 7: // DPAD Y
             if (std::abs(axis_value) > AXIS_DEADZONE) {
-                motors_.mid_foot.set_direction(axis_value < 0);
                 motors_.mid_foot.set_direction(axis_value > 0);
-                motors_.mid_foot.set_frequency(100);
+                motors_.mid_foot.set_frequency(800);
             } else {
                 motors_.mid_foot.set_frequency(0);
             }

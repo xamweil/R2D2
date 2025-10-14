@@ -71,7 +71,7 @@ bool SerialPort::connect(const char *port_name) {
     }
 
     if (connected_) {
-        listener_thread = std::thread(&SerialPort::listen, this);
+        listener_thread_ = std::thread(&SerialPort::listen, this);
     }
 
     return connected_;
@@ -93,7 +93,6 @@ std::string SerialPort::read_line() {
                 std::string line = read_buffer_.substr(0, newline_pos);
                 read_buffer_.erase(0, newline_pos + 1);
 
-                // Handle carriage return if present
                 if (!line.empty() && line.back() == '\r') {
                     line.pop_back();
                 }
@@ -117,23 +116,9 @@ void SerialPort::listen() {
     }
 }
 
-bool SerialPort::writeData(const uint8_t *data, size_t size) const {
+bool SerialPort::write_data(const uint8_t *data, size_t size) const {
     const ssize_t bytes_written = write(serial_port_fd_, data, size);
     return bytes_written >= 0 && static_cast<size_t>(bytes_written) == size;
-}
-
-std::string SerialPort::readData() const {
-    static constexpr size_t BufferSize = 256;
-    std::array<char, BufferSize> buffer = {};
-    const ssize_t bytes_read =
-        read(serial_port_fd_, buffer.data(), buffer.size());
-
-    if (bytes_read > 0) {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
-        buffer[bytes_read] = '\0';
-        return {buffer.data()};
-    }
-    return "";
 }
 
 void SerialPort::disconnect() {
