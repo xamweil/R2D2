@@ -12,6 +12,7 @@ from serial_comm.Max7219 import Max7219
 from serial_comm.LedMatrix import LedMatrix
 from serial_comm.SerialProcessor import SerialProcessor
 from arduino_flash.locks import get_port_lock
+from serial_comm.CameraTiltActuator import CameraTiltActuator
 #from serial_comm.SystemTest import SystemTest
 
 class SerialNode(Node):
@@ -41,7 +42,8 @@ class SerialNode(Node):
                 "nob2": Nob(self.serUno, 0x11),
                 "nob3": Nob(self.serUno, 0x12),
                 "Max7219": Max7219(self.serXiao8x8, 0x01),
-                "LedMatrix": LedMatrix(self.serXiao4x26, 0x01) 
+                "LedMatrix": LedMatrix(self.serXiao4x26, 0x01),
+                "CameraTilt": CameraTiltActuator(self.serUno, 0x20)
             }
             
         self.resp_pub = self.create_publisher(StringMsg, 'serial_response', 10)
