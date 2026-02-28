@@ -20,8 +20,7 @@ class Flash:
         Flash Arduino Uno
         """
         fqbn = "arduino:avr:uno"
-        dir = os.path.dirname(__file__) 
-        dir = os.path.abspath(os.path.join(dir, "..", "..", "..", "..", "..", "HeadUno"))
+        dir = "/Head/HeadUno"
         
         if not os.path.isdir(dir):
             return False, f"Sketch directory not found: {dir}"
