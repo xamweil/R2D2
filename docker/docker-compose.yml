@@ -21,7 +21,7 @@ services:
       # - "../Body/BodyPico_MotorControl/Justfile:/opt/pico/Justfile"
     devices:
       - /dev/ttyACM0
-      - /dev/input/event5
+      # - /dev/input/event5
 volumes:
   build:
   install:
