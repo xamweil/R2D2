@@ -22,7 +22,7 @@ sh:
     docker exec -it {{SERVICE}} bash
 
 console-out:
-    tail -f central_comm/ros2_ws/log/*.log
+    tail -f ros-serial/log/*.log
 
 clean:
     sudo rm -rf ./ros-serial/build \

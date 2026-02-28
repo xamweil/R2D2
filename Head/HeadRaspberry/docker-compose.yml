@@ -17,6 +17,7 @@ services:
         - ./ros-serial/build:/home/ros/ros2_ws/build:rw
         - ./ros-serial/install:/home/ros/ros2_ws/install:rw
         - ./ros-serial/log:/home/ros/.ros/log:rw
+        - ../HeadUno:/Head/HeadUno:rw
         devices:
         - /dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_758343531313513150C1-if00 
         - /dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_3FE8661E5154315432202020FF0B191E-if00 
