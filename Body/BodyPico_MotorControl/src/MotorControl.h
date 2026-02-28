@@ -48,7 +48,7 @@ struct MotorConfig {
     uint8_t enable_pin;
     uint8_t pulse_pin;
     uint8_t direction_pin;
-    uint8_t step_size;
+    int32_t steps_per_rev;
 };
 
 class Motor {
@@ -57,10 +57,18 @@ private:
     uint8_t enable_pin_;
     uint8_t direction_pin_;
     uint8_t pulse_pin_;
-    uint8_t step_size_;
+    int32_t steps_per_rev_;
     bool direction_ = true;
     int32_t frequency_ = 500;
     bool enabled_ = false;
+
+    // Position tracking
+    int32_t step_count_ = 0;
+    int32_t step_fraction_ = 0; // sub-step accumulator (units: 1/1000 step)
+    uint32_t last_tick_ms_ = 0;
+    bool position_mode_ = false;
+    int32_t target_steps_ = 0;
+    uint16_t speed_steps_per_sec_ = 500;
 
 public:
     explicit Motor(const MotorConfig &config);
@@ -69,9 +77,13 @@ public:
     void set_enabled(bool enabled);
     void toggle_direction();
     void toggle_enabled();
+    void tick();
+    void set_target(int32_t target_steps, uint16_t speed);
     [[nodiscard]] int32_t get_frequency() const;
     [[nodiscard]] bool get_direction() const;
     [[nodiscard]] bool is_enabled() const;
+    [[nodiscard]] int32_t get_step_count() const;
+    [[nodiscard]] int32_t get_steps_per_rev() const;
 };
 
 struct MotorCommand {
@@ -99,37 +111,59 @@ struct MotorCommand {
     static constexpr size_t SIZE = 5;
 };
 
+struct HeadMotorCommand {
+    bool enabled;
+    int16_t target_angle_decideg;  // tenths of a degree, e.g. 900 = 90.0°
+    uint16_t speed_steps_per_sec;
+
+    static HeadMotorCommand deserializeFrom(const uint8_t *buf) {
+        HeadMotorCommand cmd{};
+        cmd.enabled = buf[0] & 0x01;
+        cmd.target_angle_decideg =
+            (int16_t)((uint16_t)buf[1] | ((uint16_t)buf[2] << 8));
+        cmd.speed_steps_per_sec =
+            (uint16_t)buf[3] | ((uint16_t)buf[4] << 8);
+        return cmd;
+    }
+
+    static constexpr size_t SIZE = 5;
+};
+
 static constexpr size_t MOTOR_COMMAND_FRAME_SIZE =
     6 * MotorCommand::SIZE; // 30 bytes
 
 struct MotorCommandFrame {
     MotorCommand mid_foot;
-    MotorCommand head;
+    HeadMotorCommand head;
     MotorCommand left_shoulder;
     MotorCommand right_shoulder;
     MotorCommand left_foot;
     MotorCommand right_foot;
 
     void serialize(uint8_t *buf) const {
-        const MotorCommand *cmds[] = {&mid_foot,      &head,
-                                      &left_shoulder, &right_shoulder,
-                                      &left_foot,     &right_foot};
-        for (size_t i = 0; i < 6; i++) {
-            cmds[i]->serializeTo(buf + (i * MotorCommand::SIZE));
-        }
+        mid_foot.serializeTo(buf + 0 * MotorCommand::SIZE);
+        // HeadMotorCommand serialization
+        buf[1 * MotorCommand::SIZE + 0] = head.enabled ? 1 : 0;
+        buf[1 * MotorCommand::SIZE + 1] = (uint8_t)(head.target_angle_decideg & 0xFF);
+        buf[1 * MotorCommand::SIZE + 2] = (uint8_t)((head.target_angle_decideg >> 8) & 0xFF);
+        buf[1 * MotorCommand::SIZE + 3] = (uint8_t)(head.speed_steps_per_sec & 0xFF);
+        buf[1 * MotorCommand::SIZE + 4] = (uint8_t)((head.speed_steps_per_sec >> 8) & 0xFF);
+        left_shoulder.serializeTo(buf + 2 * MotorCommand::SIZE);
+        right_shoulder.serializeTo(buf + 3 * MotorCommand::SIZE);
+        left_foot.serializeTo(buf + 4 * MotorCommand::SIZE);
+        right_foot.serializeTo(buf + 5 * MotorCommand::SIZE);
     }
 
     static bool deserialize(const uint8_t *data, size_t len,
                             MotorCommandFrame &frame) {
         if (len < MOTOR_COMMAND_FRAME_SIZE)
             return false;
-        MotorCommand *cmds[] = {&frame.mid_foot,      &frame.head,
-                                &frame.left_shoulder, &frame.right_shoulder,
-                                &frame.left_foot,     &frame.right_foot};
-        for (size_t i = 0; i < 6; i++) {
-            *cmds[i] =
-                MotorCommand::deserializeFrom(data + (i * MotorCommand::SIZE));
-        }
+        frame.mid_foot = MotorCommand::deserializeFrom(data + 0 * MotorCommand::SIZE);
+        frame.head = HeadMotorCommand::deserializeFrom(data + 1 * MotorCommand::SIZE);
+        frame.left_shoulder = MotorCommand::deserializeFrom(data + 2 * MotorCommand::SIZE);
+        frame.right_shoulder = MotorCommand::deserializeFrom(data + 3 * MotorCommand::SIZE);
+        frame.left_foot = MotorCommand::deserializeFrom(data + 4 * MotorCommand::SIZE);
+        frame.right_foot = MotorCommand::deserializeFrom(data + 5 * MotorCommand::SIZE);
         return true;
     }
 };
@@ -162,6 +196,6 @@ public:
     MotorCommandFrame command_prev;
 
     explicit MotorControl(const MotorsConfigs &motors_configs);
-    // void update();
+    void tick();
     void update(std::array<uint8_t, MOTOR_COMMAND_FRAME_SIZE> &buf);
 };
