@@ -30,18 +30,18 @@ void SerialProcessor::listen() {
         return;
     }
 
-    uint16_t buttons_raw = 0;
-    std::memcpy(&buttons_raw, buffer_.data(), sizeof(buttons_raw));
-    auto &buttons = motor_control_->controller_state_.buttons;
+    // uint16_t buttons_raw = 0;
+    // std::memcpy(&buttons_raw, buffer_.data(), sizeof(buttons_raw));
+    // auto &buttons = motor_control_->controller_state_.buttons;
+    //
+    // for (size_t i = 0; i < buttons.size(); ++i) {
+    //     buttons[i] = (buttons_raw & (1 << i)) != 0;
+    // }
+    //
+    // auto &axes = motor_control_->controller_state_.axes;
+    // std::memcpy(axes.data(), &buffer_[sizeof(buttons_raw)],
+    //             NUM_AXES * sizeof(axes[0]));
 
-    for (size_t i = 0; i < buttons.size(); ++i) {
-        buttons[i] = (buttons_raw & (1 << i)) != 0;
-    }
-
-    auto &axes = motor_control_->controller_state_.axes;
-    std::memcpy(axes.data(), &buffer_[sizeof(buttons_raw)],
-                NUM_AXES * sizeof(axes[0]));
-
-    motor_control_->update();
+    motor_control_->update(buffer_);
     Serial.println("PACKET PROCESSED!");
 }

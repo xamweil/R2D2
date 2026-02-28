@@ -1,11 +1,7 @@
 #include "MotorControl.h"
 
 #include <rclcpp/executors.hpp>
-#include <rclcpp/node.hpp>
-#include <rclcpp/subscription.hpp>
 #include <rclcpp/utilities.hpp>
-#include <sensor_msgs/msg/detail/joy__struct.hpp>
-#include <sensor_msgs/msg/joy.hpp>
 
 #include <memory>
 

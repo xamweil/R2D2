@@ -5,7 +5,6 @@
 #include <rclcpp/logging.hpp>
 
 #include <cstdint>
-#include <cstring>
 
 MotorControl::MotorControl() : Node("motor_control") {
     serial_.connect("/dev/ttyACM0");
@@ -16,36 +15,44 @@ MotorControl::MotorControl() : Node("motor_control") {
         RCLCPP_INFO(this->get_logger(), "Serial: connected to pico");
     }
 
+    // Initialize all motors disabled
+    frame_ = MotorCommandFrame{};
+
     constexpr int queue_size = 10;
-    subscription_ = this->create_subscription<sensor_msgs::msg::Joy>(
-        "joy", queue_size,
-        [this](const sensor_msgs::msg::Joy &msg) { this->joy_callback(msg); });
+    cmd_sub_ = this->create_subscription<serial_msg::msg::MotorCommand>(
+        "/motor_command", queue_size,
+        [this](const serial_msg::msg::MotorCommand &msg) {
+            this->cmd_callback(msg);
+        });
+
+    send_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(50),
+        [this]() { this->send_frame(); });
 }
 
-void MotorControl::joy_callback(const sensor_msgs::msg::Joy &msg) {
+void MotorControl::cmd_callback(const serial_msg::msg::MotorCommand &msg) {
+    if (msg.id >= 6) {
+        RCLCPP_WARN(this->get_logger(), "Invalid motor id: %u (must be 0-5)", msg.id);
+        return;
+    }
+
+    MotorCommand *cmds[] = {&frame_.mid_foot,      &frame_.head,
+                            &frame_.left_shoulder, &frame_.right_shoulder,
+                            &frame_.left_foot,     &frame_.right_foot};
+
+    cmds[msg.id]->enabled   = msg.enable;
+    cmds[msg.id]->direction = msg.direction;
+    cmds[msg.id]->frequency = msg.frequency;
+}
+
+void MotorControl::send_frame() {
     if (!serial_.is_connected())
         return;
 
-    if (msg.buttons.size() != NUM_BUTTONS || msg.axes.size() != NUM_AXES) {
-        RCLCPP_WARN(
-            this->get_logger(),
-            "Invalid joy message size: buttons=%zu, axes=%zu (expected %u, %u)",
-            msg.buttons.size(), msg.axes.size(), NUM_BUTTONS, NUM_AXES);
-        return;
-    }
+    uint8_t buf[31];
+    buf[0] = 0xAA;
+    frame_.serialize(buf + 1);
 
-    uint16_t buttons = 0;
-    for (size_t i = 0; i < msg.buttons.size(); ++i) {
-        if (msg.buttons[i] > 0)
-            buttons += 1 << i;
-    }
-
-    std::memcpy(&packet_[1], &buttons, sizeof(buttons));
-
-    static constexpr size_t axes_offset = 1 + sizeof(buttons);
-    std::memcpy(&packet_[axes_offset], msg.axes.data(),
-                msg.axes.size() * sizeof(msg.axes[0]));
-
-    if (!serial_.write_data(packet_.data(), packet_.size()))
+    if (!serial_.write_data(buf, 31))
         RCLCPP_WARN(this->get_logger(), "Serial write failed");
 }
