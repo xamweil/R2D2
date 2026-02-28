@@ -79,3 +79,13 @@ nobs-run:
     @for d in nob1 nob2 nob3; do \
       just ssvc "$d" run_circle; \
     done
+
+# Camera tilt
+camera-default device:
+	@just ssvc {{device}} default_pos
+
+camera-low device:
+	@just ssvc {{device}} low_pos
+
+set-posdevice device args='[]':
+	@just ssvc {{device}} set_pos {{args}}

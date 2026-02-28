@@ -27,9 +27,12 @@
  *   0x03 = unknown function
  *   0x04 = bad payload
  *   0x05 = sanity check failed. Either packet is too long or len<3 (min packet size)
+ *   0x06 = Unknown error
  *
  *   0x10-0x1F => Lid Specific errors
  *   0x20-0x2F => Nob Specific errors
+ *   0x30-0x3F => CameraTilt Specific errors
+ *   -  0x31 : Value out of bound
  */
 #ifndef SERIAL_PROCESSOR_H
 #define SERIAL_PROCESSOR_H
@@ -37,6 +40,7 @@
 #include <Arduino.h>
 #include "Lid.h"
 #include "Nob.h"
+#include "CameraTiltActuator.h"
 #include <Adafruit_PWMServoDriver.h>
 
 class SerialProcessor{
@@ -45,6 +49,7 @@ class SerialProcessor{
 
     uint8_t listen();
     uint8_t processPacket(uint8_t *packet, uint8_t len);
+    void updateAll();
 
 
 
@@ -73,6 +78,9 @@ class SerialProcessor{
     Nob nob1;
     Nob nob2;
     Nob nob3;
+
+    //Camera Tilt Servo
+    CameraTiltActuator cta;
     
     //Protocoll
     uint8_t SOF; // Start of frame 0xAA

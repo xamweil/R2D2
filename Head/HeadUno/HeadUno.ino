@@ -25,6 +25,7 @@ void loop() {
   uint8_t ret = 0xFF;
   while(ret==0xFF){
     ret = serialProcessor.listen();
+    serialProcessor.updateAll();
   }
   Serial.write(ret);
   

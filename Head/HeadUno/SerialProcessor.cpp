@@ -21,14 +21,14 @@ SerialProcessor::SerialProcessor(Adafruit_PWMServoDriver &driver1, Adafruit_PWMS
   nob1(driver1, 11, 12, 83, 88, 15),
   nob2(driver1, 13, 14, 93, 90, 15),
   nob3(driver2, 0, 1, 90, 93, 15),
+  
+  cta(driver1, 15, map(0, 0, 180, _servoMin, _servoMax), map(40, 0, 180, _servoMin, _servoMax), 
+      0, 180),
+  SOF(0xAA)  { }
 
-  SOF(0xAA)
-
-
-  {
-
-  }
-
+void SerialProcessor::updateAll(){
+  cta.update();
+}
 uint8_t SerialProcessor::listen(){
   // Wait for start-of-frame
   if (!Serial.available()) return 0xFF; // No Message
@@ -66,6 +66,7 @@ uint8_t SerialProcessor::processPacket(uint8_t *packet, uint8_t len){
 
   Nob* nob = nullptr;
   Lid* lid = nullptr;
+  CameraTiltActuator* cta_p = nullptr;
 
   switch(classID) {
     // Lids
@@ -112,6 +113,11 @@ uint8_t SerialProcessor::processPacket(uint8_t *packet, uint8_t len){
       break;
     case 0x12:
       nob = &nob3;
+      break;
+
+    // Camera servo
+    case 0x20:
+    cta_p = &cta;
       break;
     default:
       return 0x01;  //Error: unknown class object
@@ -174,5 +180,33 @@ uint8_t SerialProcessor::processPacket(uint8_t *packet, uint8_t len){
     }
   
   }
+  else if(cta_p){
+    switch(funcID){
+      case 0x01:
+        return cta_p->defaultPos();
+      case 0x02:
+        return cta_p->lowPos();
+      case 0x03:
+        if (payloadLen==2){
+          return cta_p->setDefaultPos((payload[0] << 8) | payload[1]);
+        }
+        else return 0x04;
+      case 0x04:
+        if (payloadLen==2){
+          return cta_p->setLowPos((payload[0] << 8 | payload[1]));
+        }
+        else return 0x04;
+      case 0x05:
+        if (payloadLen==2){
+          return cta_p->setPos((payload[0] << 8 | payload[1]));
+        }
+        else return 0x04;
+      case 0x06:
+        return cta_p->getPos();
+      default:
+        return 0x02;
+    }
+  }
+  return 0x06;
 
 }
