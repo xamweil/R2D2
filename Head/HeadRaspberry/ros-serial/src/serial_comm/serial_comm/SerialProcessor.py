@@ -48,6 +48,8 @@ class SerialProcessor:
 
 
     def send_packet(self, CID, FID, payload=[], timeout=1):
+        if isinstance(payload, int):
+            payload = struct.pack('>h', payload)
         length = len(payload)+3 # CID + FID + PAYLOAD + CRC
 
         frame = bytearray([self.SOF, length, CID, FID])

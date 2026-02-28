@@ -87,5 +87,5 @@ camera-default device:
 camera-low device:
 	@just ssvc {{device}} low_pos
 
-set-posdevice device args='[]':
+set-pos device args='[]': # Example: just set-pos CameraTilt '[90]'
 	@just ssvc {{device}} set_pos {{args}}
