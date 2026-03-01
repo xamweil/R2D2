@@ -22,3 +22,32 @@ services:
         - /dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_758343531313513150C1-if00 
         - /dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_3FE8661E5154315432202020FF0B191E-if00 
         - /dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_391D567A5153593336202020FF0A1625-if00 
+
+    ros-camera:
+        user: root
+        build:
+            context: ./ros-camera
+            dockerfile: Dockerfile
+        image: headraspberry/ros-camera:latest
+        container_name: ros-camera
+        network_mode: host
+        restart: unless-stopped
+        privileged: true
+        group_add:
+        - video
+        environment:
+            - ROS_DOMAIN_ID=0
+            - ROS_LOG_DIR=/home/ros/.ros/log
+            - CAM_WIDTH=1280
+            - CAM_HEIGHT=720
+            - CAM_FPS=30
+            - CAM_FRAME_ID=camera_optical_frame
+            - CAM_NODE_NAME=camera
+        volumes:
+        #- ./ros-camera/build:/home/ros/ros2_ws/build:rw
+        #- ./ros-camera/install:/home/ros/ros2_ws/install:rw
+        - ./ros-camera/log:/home/ros/.ros/log:rw
+        - /run/udev:/run/udev:ro
+        - /sys:/sys:ro
+        devices:
+        - /dev:/dev

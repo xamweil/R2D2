@@ -1,36 +1,39 @@
-SERVICE := "ros-serial"
 COMPOSE := "docker compose"
+
+# default service
+SERVICE := "ros-serial"
 
 # Paths/vars
 ROS_SETUP := "/home/ros/ros2_ws/install/setup.bash"
 
-# build image
-build:
-    docker build -t headraspberry/{{SERVICE}}:latest ./{{SERVICE}}
+# --- generic helpers (work for any service) ---
+build service=SERVICE:
+    docker build -t headraspberry/{{service}}:latest ./{{service}}
 
-up: 
-    {{COMPOSE}} up -d 
+up:
+    {{COMPOSE}} up -d
 
 down:
     {{COMPOSE}} down
 
-logs:
-    {{COMPOSE}} logs -f {{SERVICE}}
+logs service=SERVICE:
+    {{COMPOSE}} logs -f {{service}}
 
-# Exec a shell inside the service container
-sh:
-    docker exec -it {{SERVICE}} bash
+sh service=SERVICE:
+    docker exec -it {{service}} bash
 
-console-out:
-    tail -f ros-serial/log/*.log
+# --- convenience shortcuts ---
+serial-logs:
+    just logs ros-serial
 
-clean:
-    sudo rm -rf ./ros-serial/build \
-                ./ros-serial/install \
-                ./ros-serial/log
+serial-sh:
+    just sh ros-serial
 
-# Clean rebuild
-rebuild: down clean build
+camera-logs:
+    just logs ros-camera
+
+camera-sh:
+    just sh ros-camera
 
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 # Call the DeviceCommand service: just ssvc <device> <method> [args-json]
@@ -89,3 +92,21 @@ camera-low device:
 
 set-pos device args='[]': # Example: just set-pos CameraTilt '[90]'
 	@just ssvc {{device}} set_pos {{args}}
+
+serial-clean:
+    sudo rm -rf ./ros-serial/build ./ros-serial/install ./ros-serial/log
+
+camera-clean:
+    sudo rm -rf ./ros-camera/build ./ros-camera/install ./ros-camera/log
+
+serial-rebuild:
+    just down
+    just serial-clean
+    just build ros-serial
+    just up
+
+camera-rebuild:
+    just down
+    just camera-clean
+    just build ros-camera
+    just up
