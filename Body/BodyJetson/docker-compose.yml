@@ -22,3 +22,23 @@ services:
       #- /dev/ttyUSB0:/dev/ttyUSB0        
       #- /dev/ttyUSB1:/dev/ttyUSB1        
       - /dev/i2c-7:/dev/i2c-7            # I²C
+
+  foxglove_bridge:
+    build:
+      context: ./foxglove_bridge
+      dockerfile: Dockerfile
+    image: bodyjetson/foxglove_bridge:latest
+    container_name: foxglove_bridge
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - ROS_DOMAIN_ID=0
+    volumes:
+      - ./central_comm/ros2_ws/install:/home/ros/ros2_ws/install:rw
+    command: >
+      bash -lc "
+        if [ -f /home/ros/ros2_ws/install/setup.bash ]; then
+          source /home/ros/ros2_ws/install/setup.bash;
+        fi;
+        ros2 launch foxglove_bridge foxglove_bridge_launch.xml
+      "
