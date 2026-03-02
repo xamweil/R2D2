@@ -62,6 +62,9 @@ WORKDIR /home/ros/ros2_ws
 RUN apt-get update && rosdep update
 RUN rosdep install -i --from-paths src --rosdistro humble -y --skip-keys=libcamera \
  && rm -rf /var/lib/apt/lists/*
+ RUN apt-get update && apt-get install -y \
+    ros-$ROS_DISTRO-rmw-cyclonedds-cpp \
+ && rm -rf /var/lib/apt/lists/*
 
 # Entrypoint scripts (same pattern as ros-serial)
 COPY docker/ros_entrypoint.sh /usr/local/bin/ros_entrypoint.sh

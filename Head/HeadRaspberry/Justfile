@@ -22,6 +22,18 @@ logs service=SERVICE:
 sh service=SERVICE:
     docker exec -it {{service}} bash
 
+topic-list:
+    @docker exec -it {{SERVICE}} bash -lc ' \
+    source {{ROS_SETUP}} && \
+    ros2 topic list \
+    '
+
+node-list:
+    @docker exec -it {{SERVICE}} bash -lc ' \
+    source {{ROS_SETUP}} && \
+    ros2 node list \
+    '
+
 # --- convenience shortcuts ---
 serial-logs:
     just logs ros-serial

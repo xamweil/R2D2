@@ -12,7 +12,9 @@ RUN pip3 install --no-cache-dir pyserial
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-example-interfaces \
  && rm -rf /var/lib/apt/lists/*
-
+RUN apt-get update && apt-get install -y \
+    ros-$ROS_DISTRO-rmw-cyclonedds-cpp \
+ && rm -rf /var/lib/apt/lists/*
 # Entrypoint scripts you created in central_comm/docker/
 COPY docker/ros_entrypoint.sh /usr/local/bin/ros_entrypoint.sh
 COPY docker/auto_launch.sh    /usr/local/bin/auto_launch.sh
