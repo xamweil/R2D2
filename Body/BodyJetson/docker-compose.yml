@@ -10,6 +10,8 @@ services:
     restart: unless-stopped
     environment:
       - ROS_DOMAIN_ID=0
+      - ROS_LOCALHOST_ONLY=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
       - ROS_LOG_DIR=/home/ros/.ros/log
     volumes:
       # Mount shared volume:
@@ -33,12 +35,17 @@ services:
     restart: unless-stopped
     environment:
       - ROS_DOMAIN_ID=0
+      - ROS_LOCALHOST_ONLY=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
     volumes:
-      - ./central_comm/ros2_ws/install:/home/ros/ros2_ws/install:rw
+      - ./central_comm/ros2_ws/install:/home/ros/ros2_ws/install:ro
     command: >
       bash -lc "
-        if [ -f /home/ros/ros2_ws/install/setup.bash ]; then
-          source /home/ros/ros2_ws/install/setup.bash;
-        fi;
+        source /opt/ros/humble/setup.bash;
+        until [ -f /home/ros/ros2_ws/install/setup.bash ]; do
+          echo '[foxglove_bridge] waiting for install/setup.bash...';
+          sleep 1;
+        done;
+        source /home/ros/ros2_ws/install/setup.bash;
         ros2 launch foxglove_bridge foxglove_bridge_launch.xml
       "

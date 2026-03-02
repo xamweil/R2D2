@@ -1,7 +1,8 @@
 # === central_comm
 # Build base image first
 FROM bodyjetson-ros:humble
-
+ARG ROS_DISTRO=humble
+ENV ROS_DISTRO=${ROS_DISTRO}
 USER root
 WORKDIR /home/ros
 
@@ -10,6 +11,9 @@ RUN apt-get update && apt-get install -y \
       # bluetooth bluez bluez-tools rfkill dbus libbluetooth-dev # Whatever bluetooth stack is used
       i2c-tools libi2c-dev \
     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    ros-$ROS_DISTRO-rmw-cyclonedds-cpp \
+ && rm -rf /var/lib/apt/lists/*
 
 # Add python libs
 RUN pip3 install --no-cache-dir pyserial
