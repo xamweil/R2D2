@@ -49,3 +49,31 @@ services:
         source /home/ros/ros2_ws/install/setup.bash;
         ros2 launch foxglove_bridge foxglove_bridge_launch.xml
       "
+
+  web_ui:
+    user: root
+    build:
+      context: ./web_ui
+      dockerfile: Dockerfile
+    image: bodyjetson/web_ui:latest
+    container_name: web_ui
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - ROS_DOMAIN_ID=0
+      - ROS_LOCALHOST_ONLY=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - UI_BRIDGE_HOST=0.0.0.0
+      - UI_BRIDGE_PORT=8000
+      - ROS_LOG_DIR=/home/ros/.ros/log
+    volumes:
+      # Web UI workspace
+      - ./web_ui/ros2_ws/src:/home/ros/ros2_ws/src:rw
+      - ./web_ui/ros2_ws/build:/home/ros/ros2_ws/build:rw
+      - ./web_ui/ros2_ws/install:/home/ros/ros2_ws/install:rw
+      - ./web_ui/ros2_ws/log:/home/ros/.ros/log:rw
+      - ./web_ui/frontend:/home/ros/frontend:ro
+
+      # Reuse custom message packages from central_comm (single source of truth)
+      - ./central_comm/ros2_ws/src/serial_msg:/home/ros/ros2_ws/src/serial_msg:ro
+      - ./central_comm/ros2_ws/src/tcp_msg:/home/ros/ros2_ws/src/tcp_msg:ro

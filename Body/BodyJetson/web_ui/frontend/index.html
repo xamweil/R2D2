@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>R2D2 Web UI (minimal)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 16px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+      button { padding: 10px 14px; font-size: 14px; cursor: pointer; }
+      pre { background: #111; color: #eee; padding: 12px; border-radius: 8px; overflow: auto; max-height: 65vh; }
+      .pill { padding: 4px 8px; border-radius: 999px; background: #eee; font-size: 12px; }
+      .ok { background: #dff7df; }
+      .bad { background: #ffd9d9; }
+    </style>
+  </head>
+
+  <body>
+    <h2>R2D2 Web UI (minimal)</h2>
+
+    <div class="row">
+      <span id="wsStatus" class="pill bad">WS: disconnected</span>
+      <button id="btnConnect">Connect</button>
+      <button id="btnOpenLid">Open lid1_1</button>
+    </div>
+
+    <h3>robot_state (latest)</h3>
+    <pre id="stateOut">(no data yet)</pre>
+
+    <script>
+      let ws = null;
+
+      function setStatus(ok, text) {
+        const el = document.getElementById("wsStatus");
+        el.textContent = text;
+        el.classList.toggle("ok", ok);
+        el.classList.toggle("bad", !ok);
+      }
+
+      function connectWs() {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+          return;
+        }
+        const proto = location.protocol === "https:" ? "wss" : "ws";
+        ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+        ws.onopen = () => setStatus(true, "WS: connected");
+        ws.onclose = () => setStatus(false, "WS: disconnected");
+        ws.onerror = () => setStatus(false, "WS: error");
+
+        ws.onmessage = (ev) => {
+          try {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === "robot_state") {
+              document.getElementById("stateOut").textContent =
+                JSON.stringify(msg.payload, null, 2);
+            } else if (msg.type === "hello") {
+              console.log("hello:", msg.payload);
+            } else {
+              // for debugging:
+              // console.log("ws msg:", msg);
+            }
+          } catch (e) {
+            console.warn("bad ws message:", ev.data);
+          }
+        };
+      }
+
+      async function openLid() {
+        // This calls the allowlisted service alias: "device_command"
+        //
+        // ASSUMPTION (based on your "just" file):
+        // serial_msg/srv/DeviceCommand request fields:
+        //   device_name, method_name, args
+        //
+        // If your service uses different field names, tell me the output of:
+        //   ros2 interface show serial_msg/srv/DeviceCommand
+        //
+        const body = {
+          alias: "device_command",
+          request: {
+            device_name: "lid1_1",
+            method_name: "open",
+            args: []   // keep args empty for open/close
+          },
+          timeout_sec: 2.0
+        };
+
+        const resp = await fetch("/call/allowed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+
+        const data = await resp.json();
+        console.log("open lid response:", data);
+        if (!data.ok) {
+          alert("Failed: " + (data.error || JSON.stringify(data)));
+        }
+      }
+
+      document.getElementById("btnConnect").onclick = connectWs;
+      document.getElementById("btnOpenLid").onclick = openLid;
+
+      // Auto-connect
+      connectWs();
+    </script>
+  </body>
+</html>
