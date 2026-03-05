@@ -1,109 +1,834 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>R2D2 Web UI (minimal)</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      body { font-family: system-ui, sans-serif; margin: 16px; }
-      .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-      button { padding: 10px 14px; font-size: 14px; cursor: pointer; }
-      pre { background: #111; color: #eee; padding: 12px; border-radius: 8px; overflow: auto; max-height: 65vh; }
-      .pill { padding: 4px 8px; border-radius: 999px; background: #eee; font-size: 12px; }
-      .ok { background: #dff7df; }
-      .bad { background: #ffd9d9; }
-    </style>
-  </head>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>R2D2 Control Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --bg0:#070b14;
+      --bg1:#0b1222;
+      --card:#0c162a;
+      --card2:#0e1b33;
+      --line:rgba(255,255,255,.08);
+      --text:#e9efff;
+      --muted:rgba(233,239,255,.7);
+      --muted2:rgba(233,239,255,.55);
+      --blue:#4aa3ff;
+      --blue2:#2b6fff;
+      --silver:#c7d2e5;
+      --ok:#20d084;
+      --warn:#ffcc66;
+      --bad:#ff4d6d;
+      --shadow: 0 18px 40px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
 
-  <body>
-    <h2>R2D2 Web UI (minimal)</h2>
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:
+        radial-gradient(1200px 900px at 20% 10%, rgba(74,163,255,.16), transparent 55%),
+        radial-gradient(900px 800px at 80% 5%, rgba(199,210,229,.10), transparent 55%),
+        linear-gradient(180deg, var(--bg0), var(--bg1));
+      color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
 
-    <div class="row">
-      <span id="wsStatus" class="pill bad">WS: disconnected</span>
-      <button id="btnConnect">Connect</button>
-      <button id="btnOpenLid">Open lid1_1</button>
+    header{
+      position:sticky; top:0;
+      backdrop-filter: blur(10px);
+      background: linear-gradient(180deg, rgba(7,11,20,.92), rgba(7,11,20,.65));
+      border-bottom:1px solid var(--line);
+      z-index:10;
+    }
+
+    .wrap{max-width:1200px; margin:0 auto; padding:14px 16px;}
+
+    .topbar{
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+    }
+
+    .brand{
+      display:flex; align-items:center; gap:12px;
+      min-width: 260px;
+    }
+    .logo{
+      width:34px; height:34px; border-radius:10px;
+      background: linear-gradient(135deg, rgba(74,163,255,.9), rgba(43,111,255,.55));
+      box-shadow: 0 10px 25px rgba(74,163,255,.22);
+      border:1px solid rgba(255,255,255,.12);
+    }
+    .title{
+      display:flex; flex-direction:column; line-height:1.05;
+    }
+    .title strong{font-size:14px; letter-spacing:.4px}
+    .title span{font-size:12px; color:var(--muted)}
+
+    .statusRow{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; border-radius:999px;
+      background: rgba(255,255,255,.06);
+      border:1px solid var(--line);
+      color:var(--muted);
+      font-size:12px;
+    }
+    .dot{width:8px; height:8px; border-radius:50%;}
+    .dot.ok{background:var(--ok)}
+    .dot.bad{background:var(--bad)}
+    .dot.warn{background:var(--warn)}
+
+    .btn{
+      appearance:none; border:none;
+      padding:9px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600;
+      color:var(--text);
+      background: rgba(255,255,255,.08);
+      border:1px solid var(--line);
+      transition: transform .08s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .btn:hover{background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.15)}
+    .btn:active{transform: translateY(1px)}
+    .btn.primary{
+      background: linear-gradient(135deg, rgba(74,163,255,.95), rgba(43,111,255,.75));
+      border-color: rgba(74,163,255,.35);
+      box-shadow: 0 14px 30px rgba(74,163,255,.18);
+    }
+    .btn.primary:hover{filter: brightness(1.04)}
+    .btn.danger{background: rgba(255,77,109,.14); border-color: rgba(255,77,109,.25)}
+    .btn.good{background: rgba(32,208,132,.12); border-color: rgba(32,208,132,.22)}
+    .btn.small{padding:7px 10px; border-radius:11px; font-size:12px}
+
+    main .wrap{padding:16px;}
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:14px;
+      align-items:start;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr}
+      .brand{min-width:unset}
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(12,22,42,.92), rgba(12,22,42,.75));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardHeader{
+      padding:12px 14px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+    }
+    .cardHeader .h{
+      display:flex; flex-direction:column; gap:2px;
+    }
+    .cardHeader .h strong{
+      font-size:13px; letter-spacing:.35px;
+    }
+    .cardHeader .h span{
+      font-size:12px; color:var(--muted2)
+    }
+    .cardBody{padding:12px 14px;}
+
+    .imuLayout{
+      display:grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap:12px;
+      align-items:stretch;
+    }
+    .imuCol{display:flex; flex-direction:column; gap:12px;}
+    .imuBox{
+      background: linear-gradient(180deg, rgba(14,27,51,.9), rgba(14,27,51,.7));
+      border:1px solid var(--line);
+      border-radius: 16px;
+      padding:12px;
+      min-height: 128px;
+    }
+    .imuBox .label{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:10px;
+      margin-bottom:8px;
+    }
+    .imuBox .label strong{font-size:12px; letter-spacing:.3px}
+    .imuMeta{
+      font-size:11px; color:var(--muted2);
+      display:flex; gap:8px; align-items:center;
+    }
+    .kvs{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px 10px;
+      margin-top:8px;
+    }
+    .kv{
+      padding:8px 10px;
+      border-radius:14px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .kv .k{font-size:10px; color:var(--muted2); letter-spacing:.25px}
+    .kv .v{font-size:12px; color:var(--silver); margin-top:2px; font-variant-numeric: tabular-nums;}
+    .staleBadge{
+      font-size:10px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      color: var(--muted);
+    }
+    .staleBadge.bad{border-color: rgba(255,77,109,.25); background: rgba(255,77,109,.10); color: rgba(255,200,210,.95)}
+    .staleBadge.ok{border-color: rgba(32,208,132,.25); background: rgba(32,208,132,.10); color: rgba(200,255,230,.95)}
+
+    .cameraBox{
+      position:relative;
+      border-radius: 16px;
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.10);
+      background: radial-gradient(700px 400px at 20% 15%, rgba(74,163,255,.12), transparent 60%),
+                  linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      min-height: 320px;
+    }
+    .camCanvas{
+      width:100%;
+      display:block;
+      background: rgba(0,0,0,.25);
+      aspect-ratio: 16 / 10;
+      object-fit: cover;
+    }
+    .camOverlay{
+      position:absolute; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      color: rgba(233,239,255,.85);
+      text-align:center;
+      padding:18px;
+      pointer-events:none;
+    }
+    .camOverlay .hint{
+      max-width: 360px;
+      background: rgba(7,11,20,.55);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 16px;
+      padding:12px 14px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+    }
+    .camOverlay .hint strong{display:block; margin-bottom:6px; font-size:13px}
+    .camOverlay .hint span{display:block; font-size:12px; color: var(--muted)}
+
+    .controlsGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+    }
+    @media (max-width: 980px){
+      .controlsGrid{grid-template-columns:1fr}
+    }
+
+    .deviceGrid{
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap:10px;
+    }
+    @media (max-width: 980px){
+      .deviceGrid{grid-template-columns: repeat(2, minmax(0, 1fr));}
+    }
+    .deviceCard{
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      padding:10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-height: 86px;
+    }
+    .deviceCard .name{
+      font-size:12px;
+      color: var(--silver);
+      letter-spacing:.25px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      font-variant-numeric: tabular-nums;
+    }
+    .deviceBtns{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .toast{
+      position:fixed;
+      right:14px;
+      bottom:14px;
+      width: min(420px, calc(100vw - 28px));
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      z-index:999;
+      pointer-events:none;
+    }
+    .toastItem{
+      pointer-events:auto;
+      background: rgba(7,11,20,.75);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 16px;
+      padding:10px 12px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      animation: pop .16s ease-out;
+    }
+    @keyframes pop{ from{ transform: translateY(6px); opacity:0 } to{ transform: translateY(0); opacity:1 } }
+    .toastItem .ico{
+      width:10px; height:10px; border-radius:50%;
+      margin-top:5px;
+      background: var(--blue);
+    }
+    .toastItem.ok .ico{ background: var(--ok) }
+    .toastItem.bad .ico{ background: var(--bad) }
+    .toastItem .txt{flex:1}
+    .toastItem .txt strong{display:block; font-size:12px; margin-bottom:2px}
+    .toastItem .txt span{display:block; font-size:12px; color: var(--muted); white-space:pre-wrap}
+    .toastItem button{
+      pointer-events:auto;
+      border:none;
+      background: transparent;
+      color: rgba(233,239,255,.65);
+      cursor:pointer;
+      font-size:16px;
+      line-height:1;
+      padding:2px 4px;
+    }
+
+    .mini{
+      color: var(--muted2);
+      font-size:12px;
+    }
+    .row{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+
+    code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      color: rgba(233,239,255,.85);
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div class="title">
+          <strong>R2D2 Control Panel</strong>
+          <span>Jetson Web UI • ROS 2 bridge</span>
+        </div>
+      </div>
+
+      <div class="statusRow">
+        <span class="pill" title="WebSocket link status">
+          <span id="wsDot" class="dot bad"></span>
+          <span id="wsText">Disconnected</span>
+        </span>
+        <span class="pill" title="Last robot_state update">
+          <span class="dot warn"></span>
+          <span id="lastUpdate">No data yet</span>
+        </span>
+        <button class="btn primary" id="btnReconnect">Reconnect</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <div class="grid">
+      <!-- Left: IMUs + controls -->
+      <div class="col">
+
+        <section class="card">
+          <div class="cardHeader">
+            <div class="h">
+              <strong>MPU Sensors</strong>
+              <span>Body + legs + feet (live)</span>
+            </div>
+            <div class="row">
+              <span class="mini">stale &gt; <code id="staleSec">2.0</code>s</span>
+            </div>
+          </div>
+
+          <div class="cardBody">
+            <div class="imuLayout">
+              <!-- Left side -->
+              <div class="imuCol">
+                <div class="imuBox" id="imu_left_leg">
+                  <div class="label">
+                    <strong>Left Leg</strong>
+                    <span class="staleBadge bad" data-badge>waiting</span>
+                  </div>
+                  <div class="imuMeta"><span data-age>—</span></div>
+                  <div class="kvs">
+                    <div class="kv"><div class="k">ax</div><div class="v" data-ax>—</div></div>
+                    <div class="kv"><div class="k">ay</div><div class="v" data-ay>—</div></div>
+                    <div class="kv"><div class="k">az</div><div class="v" data-az>—</div></div>
+                    <div class="kv"><div class="k">temp</div><div class="v" data-temp>—</div></div>
+                  </div>
+                </div>
+
+                <div class="imuBox" id="imu_left_foot">
+                  <div class="label">
+                    <strong>Left Foot</strong>
+                    <span class="staleBadge bad" data-badge>waiting</span>
+                  </div>
+                  <div class="imuMeta"><span data-age>—</span></div>
+                  <div class="kvs">
+                    <div class="kv"><div class="k">ax</div><div class="v" data-ax>—</div></div>
+                    <div class="kv"><div class="k">ay</div><div class="v" data-ay>—</div></div>
+                    <div class="kv"><div class="k">az</div><div class="v" data-az>—</div></div>
+                    <div class="kv"><div class="k">temp</div><div class="v" data-temp>—</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Body center -->
+              <div class="imuCol">
+                <div class="imuBox" id="imu_body" style="min-height: 268px;">
+                  <div class="label">
+                    <strong>Body</strong>
+                    <span class="staleBadge bad" data-badge>waiting</span>
+                  </div>
+                  <div class="imuMeta"><span data-age>—</span></div>
+
+                  <div class="kvs">
+                    <div class="kv"><div class="k">ax</div><div class="v" data-ax>—</div></div>
+                    <div class="kv"><div class="k">ay</div><div class="v" data-ay>—</div></div>
+                    <div class="kv"><div class="k">az</div><div class="v" data-az>—</div></div>
+                    <div class="kv"><div class="k">gx</div><div class="v" data-gx>—</div></div>
+                    <div class="kv"><div class="k">gy</div><div class="v" data-gy>—</div></div>
+                    <div class="kv"><div class="k">gz</div><div class="v" data-gz>—</div></div>
+                    <div class="kv"><div class="k">temp</div><div class="v" data-temp>—</div></div>
+                    <div class="kv"><div class="k">note</div><div class="v" data-note>—</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right side -->
+              <div class="imuCol">
+                <div class="imuBox" id="imu_right_leg">
+                  <div class="label">
+                    <strong>Right Leg</strong>
+                    <span class="staleBadge bad" data-badge>waiting</span>
+                  </div>
+                  <div class="imuMeta"><span data-age>—</span></div>
+                  <div class="kvs">
+                    <div class="kv"><div class="k">ax</div><div class="v" data-ax>—</div></div>
+                    <div class="kv"><div class="k">ay</div><div class="v" data-ay>—</div></div>
+                    <div class="kv"><div class="k">az</div><div class="v" data-az>—</div></div>
+                    <div class="kv"><div class="k">temp</div><div class="v" data-temp>—</div></div>
+                  </div>
+                </div>
+
+                <div class="imuBox" id="imu_right_foot">
+                  <div class="label">
+                    <strong>Right Foot</strong>
+                    <span class="staleBadge bad" data-badge>waiting</span>
+                  </div>
+                  <div class="imuMeta"><span data-age>—</span></div>
+                  <div class="kvs">
+                    <div class="kv"><div class="k">ax</div><div class="v" data-ax>—</div></div>
+                    <div class="kv"><div class="k">ay</div><div class="v" data-ay>—</div></div>
+                    <div class="kv"><div class="k">az</div><div class="v" data-az>—</div></div>
+                    <div class="kv"><div class="k">temp</div><div class="v" data-temp>—</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:12px" class="mini">
+              Tip: if entries show <code>waiting</code> or <code>stale</code>, the source node/topic may be down — the rest of the UI keeps running.
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-top:14px;">
+          <div class="cardHeader">
+            <div class="h">
+              <strong>Controls</strong>
+              <span>Lids + nobs via <code>serial_msg/srv/DeviceCommand</code></span>
+            </div>
+            <div class="row">
+              <button class="btn small good" id="btnBottomOpen">Bottom Open</button>
+              <button class="btn small danger" id="btnBottomClose">Bottom Close</button>
+              <button class="btn small good" id="btnTopOpen">Top Open</button>
+              <button class="btn small danger" id="btnTopClose">Top Close</button>
+              <button class="btn small" id="btnNobsRun">Run all nobs</button>
+            </div>
+          </div>
+
+          <div class="cardBody">
+            <div class="controlsGrid">
+              <div>
+                <div class="row" style="margin-bottom:10px;">
+                  <strong style="font-size:12px; letter-spacing:.3px; color:var(--silver);">Lids • Bottom (lid1_1 … lid1_8)</strong>
+                </div>
+                <div class="deviceGrid" id="gridLid1"></div>
+              </div>
+
+              <div>
+                <div class="row" style="margin-bottom:10px;">
+                  <strong style="font-size:12px; letter-spacing:.3px; color:var(--silver);">Lids • Top (lid2_1 … lid2_5)</strong>
+                </div>
+                <div class="deviceGrid" id="gridLid2"></div>
+
+                <div style="height:12px;"></div>
+
+                <div class="row" style="margin-bottom:10px;">
+                  <strong style="font-size:12px; letter-spacing:.3px; color:var(--silver);">Nobs (nob1 … nob3)</strong>
+                </div>
+                <div class="deviceGrid" id="gridNobs"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Right: camera -->
+      <div class="col">
+        <section class="card">
+          <div class="cardHeader">
+            <div class="h">
+              <strong>Camera</strong>
+              <span>Compressed stream (top right)</span>
+            </div>
+            <div class="row">
+              <button class="btn small" id="btnCamHelp">How to enable</button>
+            </div>
+          </div>
+
+          <div class="cardBody">
+            <div class="cameraBox">
+              <img id="camImg" class="camCanvas" alt="camera stream" src="/mjpeg" />
+              <div class="camOverlay" id="camOverlay">
+                <div class="hint">
+                  <strong>Waiting for camera frames</strong>
+                  <span>
+                    Your backend currently streams sensor state only.<br/>
+                    Next step: add an on-demand WS image frame stream for <code>/camera/image_raw/compressed</code>.
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="mini" style="margin-top:10px;">
+              Recommended: keep <code>image_raw</code> unsubscribed to avoid Wi-Fi overload — use compressed only.
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
 
-    <h3>robot_state (latest)</h3>
-    <pre id="stateOut">(no data yet)</pre>
+  </div>
+</main>
 
-    <script>
-      let ws = null;
+<div class="toast" id="toast"></div>
 
-      function setStatus(ok, text) {
-        const el = document.getElementById("wsStatus");
-        el.textContent = text;
-        el.classList.toggle("ok", ok);
-        el.classList.toggle("bad", !ok);
+<script>
+  // ---------------------------
+  // WebSocket robot_state
+  // ---------------------------
+  let ws = null;
+  let lastStateTs = 0;
+
+  function setWsStatus(ok, text){
+    const dot = document.getElementById("wsDot");
+    const t = document.getElementById("wsText");
+    dot.className = "dot " + (ok ? "ok" : "bad");
+    t.textContent = text;
+  }
+
+  function fmtNum(x){
+    if (x === null || x === undefined) return "—";
+    if (typeof x !== "number") {
+      const n = Number(x);
+      if (Number.isFinite(n)) x = n;
+      else return String(x);
+    }
+    // keep stable width-ish
+    return x.toFixed(3);
+  }
+
+  function pick(obj, keys){
+    // returns first existing key
+    for (const k of keys){
+      if (obj && Object.prototype.hasOwnProperty.call(obj, k)) return obj[k];
+    }
+    return undefined;
+  }
+
+  function showToast(ok, title, msg){
+    const root = document.getElementById("toast");
+    const el = document.createElement("div");
+    el.className = "toastItem " + (ok ? "ok" : "bad");
+    el.innerHTML = `
+      <div class="ico"></div>
+      <div class="txt">
+        <strong>${title}</strong>
+        <span>${msg}</span>
+      </div>
+      <button title="dismiss">×</button>
+    `;
+    el.querySelector("button").onclick = () => el.remove();
+    root.appendChild(el);
+    setTimeout(() => { if (el.isConnected) el.remove(); }, 4500);
+  }
+
+  function connectWs(){
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+    ws.onopen = () => setWsStatus(true, "Connected");
+    ws.onclose = () => setWsStatus(false, "Disconnected");
+    ws.onerror = () => setWsStatus(false, "Error");
+
+    ws.onmessage = (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+
+      if (msg.type === "hello"){
+        const stale = msg.payload?.stale_sec;
+        if (stale != null) document.getElementById("staleSec").textContent = stale;
+        return;
       }
 
-      function connectWs() {
-        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-          return;
-        }
-        const proto = location.protocol === "https:" ? "wss" : "ws";
-        ws = new WebSocket(`${proto}://${location.host}/ws`);
-
-        ws.onopen = () => setStatus(true, "WS: connected");
-        ws.onclose = () => setStatus(false, "WS: disconnected");
-        ws.onerror = () => setStatus(false, "WS: error");
-
-        ws.onmessage = (ev) => {
-          try {
-            const msg = JSON.parse(ev.data);
-            if (msg.type === "robot_state") {
-              document.getElementById("stateOut").textContent =
-                JSON.stringify(msg.payload, null, 2);
-            } else if (msg.type === "hello") {
-              console.log("hello:", msg.payload);
-            } else {
-              // for debugging:
-              // console.log("ws msg:", msg);
-            }
-          } catch (e) {
-            console.warn("bad ws message:", ev.data);
-          }
-        };
+      if (msg.type === "robot_state"){
+        lastStateTs = Date.now();
+        document.getElementById("lastUpdate").textContent = "Updated " + new Date().toLocaleTimeString();
+        renderRobotState(msg.payload);
+        return;
       }
 
-      async function openLid() {
-        // This calls the allowlisted service alias: "device_command"
-        //
-        // ASSUMPTION (based on your "just" file):
-        // serial_msg/srv/DeviceCommand request fields:
-        //   device_name, method_name, args
-        //
-        // If your service uses different field names, tell me the output of:
-        //   ros2 interface show serial_msg/srv/DeviceCommand
-        //
-        const body = {
-          alias: "device_command",
-          request: {
-            device_name: "lid1_1",
-            method_name: "open",
-            args: []   // keep args empty for open/close
-          },
-          timeout_sec: 2.0
-        };
+      // Future: if you add image frames, handle them here:
+      // if (msg.type === "camera_frame") { ... }
+    };
+  }
 
-        const resp = await fetch("/call/allowed", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body)
-        });
+  document.getElementById("btnReconnect").onclick = connectWs;
+  connectWs();
+  const cam = document.getElementById("camImg");
+  const overlay = document.getElementById("camOverlay");
+  cam.onload = () => { overlay.style.display = "none"; };
+  cam.onerror = () => { overlay.style.display = "flex"; };
 
-        const data = await resp.json();
-        console.log("open lid response:", data);
-        if (!data.ok) {
-          alert("Failed: " + (data.error || JSON.stringify(data)));
-        }
+  // ---------------------------
+  // Render IMUs from robot_state
+  // ---------------------------
+  // Your MPU6500Sample.msg fields might differ; we try common candidates.
+  // If you paste the .msg content, we can map perfectly.
+  function renderImu(alias, entry){
+    const box = document.getElementById(alias);
+    if (!box) return;
+
+    const badge = box.querySelector("[data-badge]");
+    const ageEl = box.querySelector("[data-age]");
+
+    if (!entry || !entry.present){
+      badge.textContent = "missing";
+      badge.className = "staleBadge bad";
+      ageEl.textContent = "no messages yet";
+      for (const sel of ["ax","ay","az","gx","gy","gz","temp","note"]){
+        const v = box.querySelector(`[data-${sel}]`);
+        if (v) v.textContent = "—";
       }
+      return;
+    }
 
-      document.getElementById("btnConnect").onclick = connectWs;
-      document.getElementById("btnOpenLid").onclick = openLid;
+    const stale = !!entry.stale;
+    badge.textContent = stale ? "stale" : "live";
+    badge.className = "staleBadge " + (stale ? "bad" : "ok");
 
-      // Auto-connect
-      connectWs();
-    </script>
-  </body>
+    const age = entry.age ?? 0;
+    ageEl.textContent = `age ${age.toFixed(2)}s`;
+
+    const d = entry.data || {};
+
+    // Try to infer field names:
+    // accel: ax/ay/az or accel_x... or a.x...
+    // gyro: gx/gy/gz or gyro_x... or g.x...
+    const ax = pick(d, ["ax","accel_x","acc_x","a_x","accelX"]);
+    const ay = pick(d, ["ay","accel_y","acc_y","a_y","accelY"]);
+    const az = pick(d, ["az","accel_z","acc_z","a_z","accelZ"]);
+
+    const gx = pick(d, ["gx","gyro_x","gyr_x","g_x","gyroX"]);
+    const gy = pick(d, ["gy","gyro_y","gyr_y","g_y","gyroY"]);
+    const gz = pick(d, ["gz","gyro_z","gyr_z","g_z","gyroZ"]);
+
+    const temp = pick(d, ["temp","temperature","t"]);
+
+    // Fill values
+    const set = (k, val) => {
+      const v = box.querySelector(`[data-${k}]`);
+      if (v) v.textContent = fmtNum(val);
+    };
+    set("ax", ax);
+    set("ay", ay);
+    set("az", az);
+    set("gx", gx);
+    set("gy", gy);
+    set("gz", gz);
+    set("temp", temp);
+    const note = box.querySelector(`[data-note]`);
+    if (note) note.textContent = stale ? "waiting for updates" : "ok";
+  }
+
+  function renderRobotState(state){
+    const entries = state?.entries || {};
+    renderImu("imu_left_leg", entries["imu_left_leg"]);
+    renderImu("imu_left_foot", entries["imu_left_foot"]);
+    renderImu("imu_body", entries["imu_body"]);
+    renderImu("imu_right_leg", entries["imu_right_leg"]);
+    renderImu("imu_right_foot", entries["imu_right_foot"]);
+  }
+
+  // ---------------------------
+  // Service calls: lids + nobs
+  // ---------------------------
+  async function deviceCommand(deviceName, methodName, argsArr = []){
+    const body = {
+      alias: "device_command",
+      request: {
+        device_name: deviceName,
+        method_name: methodName,
+        args: argsArr
+      },
+      timeout_sec: 2.0
+    };
+
+    const resp = await fetch("/call/allowed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+
+    const data = await resp.json().catch(() => ({}));
+    if (!data.ok){
+      showToast(false, "Command failed", `${deviceName}.${methodName}\n${data.error || JSON.stringify(data)}`);
+      return null;
+    }
+    showToast(true, "Command sent", `${deviceName}.${methodName}\n${(data.response && data.response.response) ? data.response.response : "ok"}`);
+    return data;
+  }
+
+  function mkDeviceCard(name, actions){
+    const card = document.createElement("div");
+    card.className = "deviceCard";
+    card.innerHTML = `
+      <div class="name"><span>${name}</span><span class="mini">Device</span></div>
+      <div class="deviceBtns"></div>
+    `;
+    const btns = card.querySelector(".deviceBtns");
+    for (const a of actions){
+      const b = document.createElement("button");
+      b.className = "btn small " + (a.kind || "");
+      b.textContent = a.label;
+      b.onclick = a.onClick;
+      btns.appendChild(b);
+    }
+    return card;
+  }
+
+  function renderDevices(){
+    const gridLid1 = document.getElementById("gridLid1");
+    const gridLid2 = document.getElementById("gridLid2");
+    const gridNobs = document.getElementById("gridNobs");
+
+    const lid1 = Array.from({length:8}, (_,i)=>`lid1_${i+1}`);
+    const lid2 = Array.from({length:5}, (_,i)=>`lid2_${i+1}`);
+    const nobs = ["nob1","nob2","nob3"];
+
+    const lidActions = (name) => ([
+      { label:"Open", kind:"good", onClick: ()=>deviceCommand(name, "open", []) },
+      { label:"Close", kind:"danger", onClick: ()=>deviceCommand(name, "close", []) },
+    ]);
+
+    const nobActions = (name) => ([
+      { label:"Run", kind:"primary", onClick: ()=>deviceCommand(name, "run_circle", []) },
+    ]);
+
+    lid1.forEach(n => gridLid1.appendChild(mkDeviceCard(n, lidActions(n))));
+    lid2.forEach(n => gridLid2.appendChild(mkDeviceCard(n, lidActions(n))));
+    nobs.forEach(n => gridNobs.appendChild(mkDeviceCard(n, nobActions(n))));
+  }
+
+  renderDevices();
+
+  // Group buttons (based on your justfile groups)
+  document.getElementById("btnBottomOpen").onclick = async () => {
+    const devices = ["lid1_1","lid1_2","lid1_3","lid1_4","lid1_5","lid1_6"];
+    for (const d of devices) await deviceCommand(d, "open", []);
+  };
+  document.getElementById("btnBottomClose").onclick = async () => {
+    const devices = ["lid1_1","lid1_2","lid1_3","lid1_4","lid1_5","lid1_6"];
+    for (const d of devices) await deviceCommand(d, "close", []);
+  };
+  document.getElementById("btnTopOpen").onclick = async () => {
+    const devices = ["lid2_1","lid2_2","lid2_3","lid2_4","lid2_5"];
+    for (const d of devices) await deviceCommand(d, "open", []);
+  };
+  document.getElementById("btnTopClose").onclick = async () => {
+    const devices = ["lid2_1","lid2_2","lid2_3","lid2_4","lid2_5"];
+    for (const d of devices) await deviceCommand(d, "close", []);
+  };
+  document.getElementById("btnNobsRun").onclick = async () => {
+    const devices = ["nob1","nob2","nob3"];
+    for (const d of devices) await deviceCommand(d, "run_circle", []);
+  };
+
+  // Camera help button
+  document.getElementById("btnCamHelp").onclick = () => {
+    showToast(true, "Camera stream",
+      "UI is ready for frames, but backend currently sends sensor state only.\n" +
+      "Next step: add a WS message like {type:'camera_frame', payload:{mime:'image/jpeg', b64:'...'}}\n" +
+      "and only enable the subscription on-demand to avoid Wi-Fi overload."
+    );
+  };
+
+  // Keep a tiny watchdog for last update
+  setInterval(() => {
+    const age = Date.now() - lastStateTs;
+    if (!lastStateTs) return;
+    // if > 5s without state, show warning
+    if (age > 5000) {
+      setWsStatus(false, "No state updates");
+    }
+  }, 1000);
+
+</script>
+</body>
 </html>

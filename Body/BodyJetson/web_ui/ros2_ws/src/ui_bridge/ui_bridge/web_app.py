@@ -7,10 +7,10 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 import os
 
-from .config import DEV_UNSAFE, STATE_PERIOD, STATE_HZ, STALE_SEC, ALLOWED_TOPICS, ALLOWED_SERVICES, NODE_NAME
+from .config import DEV_UNSAFE, STATE_PERIOD, STATE_HZ, STALE_SEC, ALLOWED_TOPICS, ALLOWED_SERVICES, NODE_NAME, CAMERA_PERIOD
 from .ros_types import RosCmd
 
 
@@ -66,6 +66,60 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
             reply_q=reply_q,
         ))
         return reply_q.get(timeout=body.timeout_sec + 1.0)
+
+    @app.get("/mjpeg")
+    async def mjpeg():
+        """
+        Streams camera frames as MJPEG. On-demand subscription: starts when a client connects,
+        stops when the client disconnects. Throttled heavily (CAMERA_FPS).
+        """
+        # start camera subscription
+        start_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
+        ros_cmd_q.put(RosCmd(kind="camera_start", data={}, reply_q=start_q))
+        _ = start_q.get(timeout=2.0)
+
+        boundary = "frame"
+
+        async def gen():
+            last_sent_t = 0.0
+            try:
+                while True:
+                    await asyncio.sleep(CAMERA_PERIOD)
+
+                    reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
+                    try:
+                        ros_cmd_q.put_nowait(RosCmd(kind="camera_get", data={}, reply_q=reply_q))
+                    except queue.Full:
+                        continue
+
+                    try:
+                        res = reply_q.get(timeout=1.0)
+                    except queue.Empty:
+                        continue
+
+                    if not res.get("ok"):
+                        continue
+
+                    t = float(res.get("t", 0.0))
+                    if t <= last_sent_t:
+                        continue
+                    last_sent_t = t
+
+                    jpeg: bytes = res["jpeg"]
+                    yield (
+                        f"--{boundary}\r\n"
+                        "Content-Type: image/jpeg\r\n"
+                        f"Content-Length: {len(jpeg)}\r\n\r\n"
+                    ).encode("utf-8") + jpeg + b"\r\n"
+            finally:
+                stop_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
+                ros_cmd_q.put(RosCmd(kind="camera_stop", data={}, reply_q=stop_q))
+                try:
+                    stop_q.get(timeout=2.0)
+                except queue.Empty:
+                    pass
+
+        return StreamingResponse(gen(), media_type=f"multipart/x-mixed-replace; boundary={boundary}")
 
     @app.post("/call")
     def call_generic(body: GenericServiceCall):

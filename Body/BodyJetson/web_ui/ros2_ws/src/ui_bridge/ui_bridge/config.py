@@ -20,10 +20,13 @@ ALLOWED_TOPICS: Dict[str, Dict[str, str]] = {
     "imu_body": {"name": "/Body/mpu", "type": "tcp_msg/msg/MPU6500Sample"},
 
     "camera_info": {"name": "/camera/camera_info", "type": "sensor_msgs/msg/CameraInfo"},
-    "image_raw": {"name": "/camera/image_raw", "type": "sensor_msgs/msg/Image"},
     "image_raw_compressed": {"name": "/camera/image_raw/compressed", "type": "sensor_msgs/msg/CompressedImage"},
 }
 
 ALLOWED_SERVICES: Dict[str, Dict[str, str]] = {
     "device_command": {"name": "/serial_command", "type": "serial_msg/srv/DeviceCommand"},
 }
+
+CAMERA_ALIAS = "image_raw_compressed"
+CAMERA_FPS = float(os.environ.get("CAMERA_FPS", "3"))  # low fps
+CAMERA_PERIOD = 1.0 / max(CAMERA_FPS, 0.5)
