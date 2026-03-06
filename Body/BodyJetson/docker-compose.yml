@@ -12,6 +12,7 @@ services:
       - ROS_DOMAIN_ID=0
       - ROS_LOCALHOST_ONLY=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
       - ROS_LOG_DIR=/home/ros/.ros/log
     volumes:
       # Mount shared volume:
@@ -19,6 +20,7 @@ services:
       - ./central_comm/ros2_ws/build:/home/ros/ros2_ws/build:rw
       - ./central_comm/ros2_ws/install:/home/ros/ros2_ws/install:rw
       - ./central_comm/ros2_ws/log:/home/ros/.ros/log:rw
+      - ./ros_network/cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
     devices:
       #- /dev/ttyACM0:/dev/ttyACM0        # Pico 
       #- /dev/ttyUSB0:/dev/ttyUSB0        
@@ -37,8 +39,10 @@ services:
       - ROS_DOMAIN_ID=0
       - ROS_LOCALHOST_ONLY=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
     volumes:
       - ./central_comm/ros2_ws/install:/home/ros/ros2_ws/install:ro
+      - ./ros_network/cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
     command: >
       bash -lc "
         source /opt/ros/humble/setup.bash;
@@ -63,10 +67,12 @@ services:
       - ROS_DOMAIN_ID=0
       - ROS_LOCALHOST_ONLY=0
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
       - UI_BRIDGE_HOST=0.0.0.0
       - UI_BRIDGE_PORT=8000
       - ROS_LOG_DIR=/home/ros/.ros/log
     volumes:
+      - ./ros_network/cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
       # Web UI workspace
       - ./web_ui/ros2_ws/src:/home/ros/ros2_ws/src:rw
       - ./web_ui/ros2_ws/build:/home/ros/ros2_ws/build:rw
