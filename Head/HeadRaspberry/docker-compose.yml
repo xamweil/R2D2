@@ -13,6 +13,7 @@ services:
             - ROS_LOCALHOST_ONLY=0
             - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
             - ROS_LOG_DIR=/home/ros/.ros/log
+            - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
         volumes:
         # Mount shared volume:
         - ./ros-serial/src:/home/ros/ros2_ws/src:rw
@@ -20,6 +21,7 @@ services:
         - ./ros-serial/install:/home/ros/ros2_ws/install:rw
         - ./ros-serial/log:/home/ros/.ros/log:rw
         - ../HeadUno:/Head/HeadUno:rw
+        - ./ros_network/cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
         devices:
         - /dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_758343531313513150C1-if00 
         - /dev/serial/by-id/usb-Seeed_Seeed_XIAO_M0_3FE8661E5154315432202020FF0B191E-if00 
@@ -41,6 +43,7 @@ services:
             - ROS_DOMAIN_ID=0
             - ROS_LOCALHOST_ONLY=0
             - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+            - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
             - ROS_LOG_DIR=/home/ros/.ros/log
             - CAM_WIDTH=1280
             - CAM_HEIGHT=720
@@ -50,6 +53,7 @@ services:
         volumes:
         #- ./ros-camera/build:/home/ros/ros2_ws/build:rw
         #- ./ros-camera/install:/home/ros/ros2_ws/install:rw
+        - ./ros_network/cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
         - ./ros-camera/log:/home/ros/.ros/log:rw
         - /run/udev:/run/udev:ro
         - /sys:/sys:ro
