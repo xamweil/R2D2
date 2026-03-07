@@ -30,7 +30,11 @@ class WebUiBridge(Node):
         self._cam_refcount = 0
 
     def _update_state(self, alias: str, msg: Any) -> None:
-        self._state[alias] = {"t": now_s(), "data": to_jsonable(msg)}
+        t = now_s()
+        self._state[alias] = {
+            "t": t,
+            "data": to_jsonable(msg),
+        }
 
     def subscribe_alias(self, alias: str, topic_name: str, msg_type_str: str) -> None:
         if alias in self._subs:
@@ -156,12 +160,12 @@ class WebUiBridge(Node):
                 continue
             age = t_now - float(entry["t"])
             out["entries"][alias] = {
-                "present": True,
-                "stale": age > STALE_SEC,
-                "age": age,
-                "t": entry["t"],
-                "data": entry["data"],
-            }
+                    "present": True,
+                    "stale": age > STALE_SEC,
+                    "age": age,
+                    "t": entry["t"],
+                    "data": entry["data"],
+                }
 
         return out
 

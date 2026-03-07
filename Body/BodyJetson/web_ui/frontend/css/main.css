@@ -1,15 +1,10 @@
 body {
     margin: 0;
-    font-family: Inter, Arial, sans-serif;
+    font-family: "Star Jedi", Arial, sans-serif;
+    letter-spacing: 2px;
     background: linear-gradient(180deg, #0a2342 0%, #0e4fa8 100%);;
     color: #f4f8ff;
     min-height: 100vh;
-}
-
-main {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 32px 24px 48px;
 }
 
 h1 {
@@ -17,16 +12,48 @@ h1 {
     text-align: center;
     font-size: 2.4rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
+    font-family: "Star Jedi Outline", Arial, sans-serif;
+    letter-spacing: 2px;
     color: #f5f8fc;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
+
 h2 {
     margin: 0 0 14px 0;
     font-size: 1.5rem;
     font-weight: 600;
     color: #dbe6f5;
 }
+
+@media (max-width: 700px) {
+    h1 {
+        font-size: 2rem;
+    }
+}
+
+@font-face {
+  font-family: "Star Jedi";
+  src: url("../assets/fonts/Starjedi.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Star Jedi Hollow";
+  src: url("../assets/fonts/Starjhol.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Star Jedi Outline";
+  src: url("../assets/fonts/STJEDISE.TTF") format("truetype");
+}
+/*
+
+main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 32px 24px 48px;
+}
+
+
 
 section {
     margin-top: 28px;
@@ -89,3 +116,4 @@ section {
         min-height: 240px;
     }
 }
+    */

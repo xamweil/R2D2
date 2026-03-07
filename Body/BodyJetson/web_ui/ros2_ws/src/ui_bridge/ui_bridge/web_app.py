@@ -3,7 +3,7 @@ import asyncio
 import queue
 from typing import Any, Dict, Set
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from pydantic import BaseModel
 
 from fastapi.staticfiles import StaticFiles
@@ -71,8 +71,11 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
     async def mjpeg():
         """
         Streams camera frames as MJPEG. On-demand subscription: starts when a client connects,
-        stops when the client disconnects. Throttled heavily (CAMERA_FPS).
+        stops when the client disconnects. If no first frame arrives quickly, fail fast instead
+        of keeping the browser request pending forever.
         """
+        FIRST_FRAME_TIMEOUT_SEC = 3.0
+
         # start camera subscription
         start_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
         ros_cmd_q.put(RosCmd(kind="camera_start", data={}, reply_q=start_q))
@@ -80,9 +83,56 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
 
         boundary = "frame"
 
+        # ---- fail fast if no first frame arrives ----
+        first_frame = None
+        first_deadline = asyncio.get_running_loop().time() + FIRST_FRAME_TIMEOUT_SEC
+
+        while asyncio.get_running_loop().time() < first_deadline:
+            await asyncio.sleep(CAMERA_PERIOD)
+
+            reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
+            try:
+                ros_cmd_q.put_nowait(RosCmd(kind="camera_get", data={}, reply_q=reply_q))
+            except queue.Full:
+                continue
+
+            try:
+                res = reply_q.get(timeout=1.0)
+            except queue.Empty:
+                continue
+
+            if not res.get("ok"):
+                continue
+
+            first_frame = res
+            break
+
+        if first_frame is None:
+            # important cleanup if no frame ever arrived
+            stop_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
+            ros_cmd_q.put(RosCmd(kind="camera_stop", data={}, reply_q=stop_q))
+            try:
+                stop_q.get(timeout=2.0)
+            except queue.Empty:
+                pass
+
+            raise HTTPException(status_code=503, detail="Camera stream unavailable: no frame received")
+
         async def gen():
             last_sent_t = 0.0
             try:
+                # send first frame immediately
+                first_t = float(first_frame.get("t", 0.0))
+                last_sent_t = first_t
+
+                first_jpeg: bytes = first_frame["jpeg"]
+                yield (
+                    f"--{boundary}\r\n"
+                    "Content-Type: image/jpeg\r\n"
+                    f"Content-Length: {len(first_jpeg)}\r\n\r\n"
+                ).encode("utf-8") + first_jpeg + b"\r\n"
+
+                # continue with normal streaming
                 while True:
                     await asyncio.sleep(CAMERA_PERIOD)
 

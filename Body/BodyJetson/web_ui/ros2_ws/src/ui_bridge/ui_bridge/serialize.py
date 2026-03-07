@@ -8,6 +8,10 @@ def to_jsonable(obj: Any) -> Any:
         # Avoid huge payloads
         return {"_bytes_len": len(obj)}
 
+    # Handle numpy arrays / array-like ROS fixed arrays
+    if hasattr(obj, "tolist") and callable(obj.tolist):
+        return to_jsonable(obj.tolist())
+
     if isinstance(obj, (list, tuple)):
         return [to_jsonable(x) for x in obj]
 
