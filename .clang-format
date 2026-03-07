@@ -1,0 +1,20 @@
+Language: Cpp
+IndentWidth: 4
+AccessModifierOffset: -4
+UseTab: Never
+ColumnLimit: 80
+
+AllowShortFunctionsOnASingleLine: None
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+AllowAllConstructorInitializersOnNextLine: false
+
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '".*"'
+    Priority: 1
+  - Regex: '^<.*\.(h|hpp)>'
+    Priority: 2
+  - Regex: '^<[^.>]+>$'
+    Priority: 3
+

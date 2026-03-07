@@ -1,0 +1,11 @@
+**/.cache/
+**/.pio/
+**/.vscode/
+**/build/
+**/install/
+**/log/
+
+**/compile_commands.json
+**/.clang-tidy
+**/.clang-format
+**/*.md
