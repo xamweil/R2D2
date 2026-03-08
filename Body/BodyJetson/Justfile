@@ -1,5 +1,7 @@
 SERVICE := "central_comm"
 COMPOSE := "docker compose"
+# Paths/vars
+ROS_SETUP := "/home/ros/ros2_ws/install/setup.bash"
 
 # Build base image
 build-base:
@@ -43,3 +45,15 @@ test:
 
 console-out:
     tail -f central_comm/ros2_ws/log/*.log
+
+topic-list:
+    @docker exec -it {{SERVICE}} bash -lc ' \
+    source {{ROS_SETUP}} && \
+    ros2 topic list \
+    '
+
+node-list:
+    @docker exec -it {{SERVICE}} bash -lc ' \
+    source {{ROS_SETUP}} && \
+    ros2 node list \
+    '

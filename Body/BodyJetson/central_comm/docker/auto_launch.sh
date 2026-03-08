@@ -6,18 +6,16 @@ cd /home/ros/ros2_ws
 
 # Forced rebuild
 if [ -n "${FORCE_REBUILD:-}" ]; then
-  echo "[auto_launch] FORCE_REBUILD set -> cleaning build/install"
-  rm -rf build install
+  echo "[auto_launch] FORCE_REBUILD set -> cleaning build/install/log"
+  rm -rf build install log
 fi
 
 # Build only if needed (first run / clean tree)
-# Build only if needed
 if [ ! -f "install/setup.bash" ] || [ -z "$(ls -A build 2>/dev/null)" ]; then
-  echo "[auto_launch] Building msg packages (symlink install)…"
-  colcon build --symlink-install --packages-select tcp_msg serial_msg
-
-  echo "[auto_launch] Building nodes…"
-  colcon build --symlink-install --packages-select xiao_bridge body_mpu_reader
+  echo "[auto_launch] Building workspace (merged install, symlink)…"
+  # One build, one consistent install prefix to get custom message type ref in setup.bash:
+  colcon build --merge-install \
+  --packages-select tcp_msg serial_msg xiao_bridge body_mpu_reader
 else
   echo "[auto_launch] Using existing build/install."
 fi

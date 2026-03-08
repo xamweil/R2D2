@@ -1,0 +1,168 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>R2D2 Web UI</title>
+
+  <!--<link rel="stylesheet" href="./css/main.css">
+  <link rel="stylesheet" href="./css/layout.css">
+  <link rel="stylesheet" href="./css/components.css">-->
+
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/layout.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+</head>
+
+<body>
+  <main class="page-shell">
+    <h1>R2D2</h1>
+    
+    <div class="dashboard-grid">
+      <section class="panel panel-placeholder">
+        <h2>Robot State</h2>
+        <div class="placeholder-box placeholder-tall">
+          3D Model / robot animation placeholder
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Camera</h2>
+
+        <div id="camera-panel">
+          <div id="camera-frame">
+            <img id="camera-image" alt="" />
+            <p id="camera-status">Camera feed not connected yet</p>
+          </div>
+
+          <div class="camera-control-panel">
+            <div class="camera-control-top">
+              <div class="camera-control-row">
+                <label for="camera-position-input">Position</label>
+                <input id="camera-position-input" type="number" value="45" />
+              </div>
+
+              <div class="camera-actions">
+                <button id="camera-retry-button" type="button">Reconnect camera</button>
+              </div>
+            </div>
+
+            <div class="camera-control-buttons">
+              <button id="camera-setpos-button" type="button">Set Position</button>
+              <button id="camera-default-button" type="button">Default</button>
+              <button id="camera-low-button" type="button">Low</button>
+            </div>
+
+            <p id="camera-control-status">Camera tilt control ready</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>MPU</h2>
+
+        <div id="mpu-panel" class="panel-box">
+          <div id="mpu-grid" class="mpu-grid">
+            
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel-placeholder">
+        <h2>Head Control</h2>
+        <div class="placeholder-box">
+          Turn wheel / head control Placeholder
+        </div>
+      </section>
+
+      <section class="panel panel-wide">
+  <h2>Head Action Panel</h2>
+
+  <div id="controls-panel" class="controls-panel">
+
+    <section class="controls-section">
+      <h3>Actions</h3>
+      <div id="actions-grid" class="actions-grid"></div>
+    </section>
+
+    <section class="controls-section">
+      <h3>Lids</h3>
+      <div id="lids-grid" class="controls-grid"></div>
+    </section>
+
+    <section class="controls-section">
+      <h3>Nobs</h3>
+      <div id="nobs-grid" class="controls-grid"></div>
+    </section>
+
+  </div>
+</section>
+    </div>
+  </main>
+
+
+  <!-- Templates -->
+  <template id="mpu-card-template">
+  <article class="mpu-card">
+    <h3 class="mpu-title">MPU Name</h3>
+
+    <div class="mpu-section">
+      <h4>Acceleration</h4>
+      <div class="mpu-values">
+        <div class="mpu-value-row">
+          <span class="mpu-label">X</span>
+          <span class="mpu-value" data-field="acc-x">N.a.</span>
+        </div>
+        <div class="mpu-value-row">
+          <span class="mpu-label">Y</span>
+          <span class="mpu-value" data-field="acc-y">N.a.</span>
+        </div>
+        <div class="mpu-value-row">
+          <span class="mpu-label">Z</span>
+          <span class="mpu-value" data-field="acc-z">N.a.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mpu-age">
+      <span class="mpu-label">Age</span>
+      <span class="mpu-value" data-field="age">N.a.</span>
+    </div>
+  </article>
+</template>
+
+<template id="lid-card-template">
+  <article class="control-card">
+    <h4 class="control-title">Lid Name</h4>
+    <p class="control-status">Not connected yet</p>
+
+    <div class="control-actions">
+      <button class="control-button control-open-button" type="button">Open</button>
+      <button class="control-button control-close-button" type="button">Close</button>
+    </div>
+  </article>
+</template>
+
+<template id="nob-card-template">
+  <article class="control-card">
+    <h4 class="control-title">Nob Name</h4>
+    <p class="control-status">Not connected yet</p>
+
+    <div class="control-actions">
+      <button class="control-button control-run-button" type="button">Run</button>
+    </div>
+  </article>
+</template>
+
+<template id="action-button-template">
+  <article class="action-card">
+    <h4 class="action-title">Action Name</h4>
+    <button class="control-button action-trigger-button" type="button">Run</button>
+  </article>
+</template>
+
+  <!--<script type="module" src="./js/main.js"></script>--> 
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+
