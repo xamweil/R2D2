@@ -29,6 +29,54 @@ const ACTION_LIST = [
   { id: "system-test", title: "System Test" },
 ];
 
+const ACTION_COMMANDS = {
+  "lids-bottom-open": [
+    { device: "lid1_1", method: "open" },
+    { device: "lid1_2", method: "open" },
+    { device: "lid1_3", method: "open" },
+    { device: "lid1_4", method: "open" },
+    { device: "lid1_5", method: "open" },
+    { device: "lid1_6", method: "open" },
+  ],
+  "lids-bottom-close": [
+    { device: "lid1_1", method: "close" },
+    { device: "lid1_2", method: "close" },
+    { device: "lid1_3", method: "close" },
+    { device: "lid1_4", method: "close" },
+    { device: "lid1_5", method: "close" },
+    { device: "lid1_6", method: "close" },
+  ],
+  "lids-top-open": [
+    { device: "lid2_1", method: "open" },
+    { device: "lid2_2", method: "open" },
+    { device: "lid2_3", method: "open" },
+    { device: "lid2_4", method: "open" },
+    { device: "lid2_5", method: "open" },
+  ],
+  "lids-top-close": [
+    { device: "lid2_1", method: "close" },
+    { device: "lid2_2", method: "close" },
+    { device: "lid2_3", method: "close" },
+    { device: "lid2_4", method: "close" },
+    { device: "lid2_5", method: "close" },
+  ],
+  "nobs-run": [
+    { device: "nob1", method: "run_circle" },
+    { device: "nob2", method: "run_circle" },
+    { device: "nob3", method: "run_circle" },
+  ],
+};
+
+function buildSystemTestSequence() {
+  return [
+    ...ACTION_COMMANDS["lids-bottom-open"],
+    ...ACTION_COMMANDS["lids-top-open"],
+    ...ACTION_COMMANDS["nobs-run"],
+    ...ACTION_COMMANDS["lids-top-close"],
+    ...ACTION_COMMANDS["lids-bottom-close"],
+  ];
+}
+
 function setControlStatus(card, text) {
   const status = card.querySelector(".control-status");
   if (!status) return;
@@ -42,20 +90,20 @@ function setButtonsDisabled(card, disabled) {
   }
 }
 
-async function runLidCommand(card, lidId, methodName) {
-  console.log("lid action", { device: lidId, method: methodName });
+async function runDeviceCommand(card, deviceId, methodName) {
+  console.log("device action", { device: deviceId, method: methodName });
 
   setButtonsDisabled(card, true);
   setControlStatus(card, `Sending: ${methodName}...`);
 
-  const result = await callDeviceCommand(lidId, methodName, []);
+  const result = await callDeviceCommand(deviceId, methodName, []);
 
   if (result.ok) {
     setControlStatus(card, `Last action: ${methodName}`);
   } else {
     setControlStatus(card, `Failed: ${methodName}`);
-    console.error("lid command failed", {
-      device: lidId,
+    console.error("device command failed", {
+      device: deviceId,
       method: methodName,
       result,
     });
@@ -64,16 +112,29 @@ async function runLidCommand(card, lidId, methodName) {
   setButtonsDisabled(card, false);
 }
 
+async function runCommandSequence(card, commands) {
+  if (!commands || commands.length === 0) return;
+
+  setButtonsDisabled(card, true);
+
+  for (const command of commands) {
+    await runDeviceCommand(card, command.device, command.method);
+  }
+
+  setButtonsDisabled(card, false);
+}
+
+
 function attachLidHandlers(card, lidId) {
   const openButton = card.querySelector(".control-open-button");
   const closeButton = card.querySelector(".control-close-button");
 
   openButton?.addEventListener("click", () => {
-    runLidCommand(card, lidId, "open");
+    runDeviceCommand(card, lidId, "open");
   });
 
   closeButton?.addEventListener("click", () => {
-    runLidCommand(card, lidId, "close");
+    runDeviceCommand(card, lidId, "close");
   });
 }
 
@@ -81,16 +142,24 @@ function attachNobHandlers(card, nobId) {
   const runButton = card.querySelector(".control-run-button");
 
   runButton?.addEventListener("click", () => {
-    console.log("nob action", { device: nobId, method: "run_circle" });
-    setControlStatus(card, "Last action: run_circle (UI only)");
+    runDeviceCommand(card, nobId, "run_circle");
   });
 }
 
 function attachActionHandlers(card, actionId) {
   const button = card.querySelector(".action-trigger-button");
 
-  button?.addEventListener("click", () => {
-    console.log("group action", { action: actionId });
+  button?.addEventListener("click", async () => {
+
+    if (actionId === "system-test") {
+      const commands = buildSystemTestSequence();
+      await runCommandSequence(card, commands);
+      return;
+    }
+
+    const commands = ACTION_COMMANDS[actionId];
+    await runCommandSequence(card, commands);
+
   });
 }
 
