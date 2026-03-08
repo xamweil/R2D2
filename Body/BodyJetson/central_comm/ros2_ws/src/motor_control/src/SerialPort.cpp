@@ -23,17 +23,27 @@ SerialPort::SerialPort() : logger_(rclcpp::get_logger("serial")) {
 }
 
 bool SerialPort::connect(const char *port_name) {
+    // make sure the previous connection is closed
+    if (serial_port_fd_ >= 0) {
+        close(serial_port_fd_);
+        serial_port_fd_ = -1;
+    }
+
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
     serial_port_fd_ = open(port_name, O_RDWR);
 
     connected_ = false;
 
     if (serial_port_fd_ < 0) {
+        close(serial_port_fd_);
+        serial_port_fd_ = -1;
         return false;
     }
 
     termios tty{};
     if (tcgetattr(serial_port_fd_, &tty) != 0) {
+        close(serial_port_fd_);
+        serial_port_fd_ = -1;
         return false;
     }
 
@@ -68,10 +78,12 @@ bool SerialPort::connect(const char *port_name) {
 
     if (tcsetattr(serial_port_fd_, TCSANOW, &tty) == 0) {
         connected_ = true;
+        listener_thread_ = std::thread(&SerialPort::listen, this);
     }
 
-    if (connected_) {
-        listener_thread_ = std::thread(&SerialPort::listen, this);
+    if (!connected_) {
+        close(serial_port_fd_);
+        serial_port_fd_ = -1;
     }
 
     return connected_;
@@ -118,7 +130,7 @@ void SerialPort::listen() {
 
 bool SerialPort::write_data(const uint8_t *data, size_t size) const {
     const ssize_t bytes_written = write(serial_port_fd_, data, size);
-    return bytes_written >= 0 && static_cast<size_t>(bytes_written) == size;
+    return bytes_written > 0 && static_cast<size_t>(bytes_written) == size;
 }
 
 void SerialPort::disconnect() {

@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#include <cstddef>
 #include <cstdint>
 
 Motor::Motor(const MotorConfig &config)
@@ -82,30 +83,73 @@ MotorControl::MotorControl(const MotorsConfigs &motors_configs)
 void MotorControl::update(std::array<uint8_t, MOTOR_COMMAND_FRAME_SIZE> &buf) {
     command_prev = command;
 
-    // TODO: handle err
-    MotorCommandFrame::deserialize(buf.data(), buf.size(), command);
+    // TODO: send error message (?)
+    if (!command.deserialize(buf.data(), buf.size())) {
+        return;
+    }
 
     motors_.head.set_enabled(command.head.enabled);
     motors_.head.set_direction(command.head.direction);
 
     if (command.head.frequency != command_prev.head.frequency)
-        motors_.head.set_frequency(command.head.frequency);
+        motors_.head.set_frequency(static_cast<int32_t>(command.head.frequency));
+}
+
+bool MotorCommand::deserialize(const uint8_t *buf, size_t len) {
+    if (len < MotorCommand::SIZE)
+        return false;
+
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    enabled = ((buf[0] & 0x01) != 0);
+    direction = ((buf[0] & 0x02) != 0);
+    frequency = (uint32_t)buf[1] | (uint32_t)buf[2] << 8 |
+                (uint32_t)buf[3] << 16 | (uint32_t)buf[4] << 24;
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+
+    return true;
+}
+
+bool MotorCommandFrame::deserialize(const uint8_t *buf, size_t len) {
+    if (len < MOTOR_COMMAND_FRAME_SIZE)
+        return false;
+
+    bool success = false;
+
+    for (size_t i = 0; i < NUM_MOTORS; i++) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        const uint8_t *b = buf + (i * MotorCommand::SIZE);
+        // clang-format off
+        switch (i) {
+            case 0: success = mid_foot.deserialize(b, MotorCommand::SIZE); break;
+            case 1: success = head.deserialize(b, MotorCommand::SIZE); break;
+            case 2: success = left_shoulder.deserialize(b, MotorCommand::SIZE); break;
+            case 3: success = right_shoulder.deserialize(b, MotorCommand::SIZE); break;
+            case 4: success = left_foot.deserialize(b, MotorCommand::SIZE); break;
+            case 5: success = right_foot.deserialize(b, MotorCommand::SIZE); break;
+            default: return false;
+        }
+        // clang-format on
+        if (!success)
+            return false;
+    }
+
+    return success;
 }
 
 // void MotorControl::update() {
 //     const uint32_t now = millis();
 //     const uint32_t dt = now - last_update_;
 //     last_update_ = now;
-//
+
 //     for (size_t i = 0; i < controller_state_.buttons.size(); ++i) {
 //         const bool &button = controller_state_.buttons[i];
 //         bool &prev_button = controller_state_.prev_buttons[i];
-//
+
 //         if (button == prev_button)
 //             continue;
-//
+
 //         prev_button = button;
-//
+
 //         if (button) {
 //             switch (i) {
 //             case 0: // CROSS
@@ -135,9 +179,9 @@ void MotorControl::update(std::array<uint8_t, MOTOR_COMMAND_FRAME_SIZE> &buf) {
 //             }
 //         }
 //     }
-//
+
 //     static constexpr float AXIS_DEADZONE = 0.01F;
-//
+
 //     for (size_t i = 0; i < controller_state_.axes.size(); ++i) {
 //         auto &axis_value = controller_state_.axes[i];
 //         switch (i) {
@@ -173,7 +217,7 @@ void MotorControl::update(std::array<uint8_t, MOTOR_COMMAND_FRAME_SIZE> &buf) {
 //             break;
 //         }
 //     }
-//
+
 //     // float x = 0;
 //     // float y = 0;
 //     // float head_x = 0;
@@ -203,6 +247,6 @@ void MotorControl::update(std::array<uint8_t, MOTOR_COMMAND_FRAME_SIZE> &buf) {
 //     // }
 //     //
 //     // auto angle = std::atan2(y, x) * (180 / PI);
-//
+
 //     // NOLINTEND(cppcoreguidelines-pro-bounds-constant-array-index)
 // }

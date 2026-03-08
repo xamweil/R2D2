@@ -19,7 +19,7 @@ public:
 
 private:
     const rclcpp::Logger logger_;
-    int serial_port_fd_{};
+    int serial_port_fd_ = -1;
     std::thread listener_thread_;
     std::atomic<bool> connected_ = false;
 };

@@ -4,7 +4,6 @@
 
 #include <Arduino.h>
 
-#include <functional>
 #include <new>
 
 static constexpr uint8_t PIN_SENSOR_HEAD = 28;
