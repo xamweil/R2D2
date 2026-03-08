@@ -29,15 +29,33 @@
 
       <section class="panel">
         <h2>Camera</h2>
+
         <div id="camera-panel">
           <div id="camera-frame">
             <img id="camera-image" alt="" />
-            <p id="camera-status"> Camera feed not connected yet </p>
+            <p id="camera-status">Camera feed not connected yet</p>
           </div>
-        </div>
 
-        <div class="camera-actions">
-          <button id="camera-retry-button" type="button">Reconnect camera</button>
+          <div class="camera-control-panel">
+            <div class="camera-control-top">
+              <div class="camera-control-row">
+                <label for="camera-position-input">Position</label>
+                <input id="camera-position-input" type="number" value="45" />
+              </div>
+
+              <div class="camera-actions">
+                <button id="camera-retry-button" type="button">Reconnect camera</button>
+              </div>
+            </div>
+
+            <div class="camera-control-buttons">
+              <button id="camera-setpos-button" type="button">Set Position</button>
+              <button id="camera-default-button" type="button">Default</button>
+              <button id="camera-low-button" type="button">Low</button>
+            </div>
+
+            <p id="camera-control-status">Camera tilt control ready</p>
+          </div>
         </div>
       </section>
 
@@ -53,7 +71,7 @@
 
       <section class="panel panel-placeholder">
         <h2>Head Control</h2>
-        <div class="placeholder box">
+        <div class="placeholder-box">
           Turn wheel / head control Placeholder
         </div>
       </section>
