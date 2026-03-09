@@ -22,7 +22,7 @@ services:
       - ./central_comm/ros2_ws/log:/home/ros/.ros/log:rw
       - ./ros_network/cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
     devices:
-      #- /dev/ttyACM0:/dev/ttyACM0        # Pico 
+      - /dev/ttyACM0:/dev/ttyACM0        # Pico 
       #- /dev/ttyUSB0:/dev/ttyUSB0        
       #- /dev/ttyUSB1:/dev/ttyUSB1        
       - /dev/i2c-7:/dev/i2c-7            # I²C
