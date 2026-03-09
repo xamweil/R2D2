@@ -4,8 +4,6 @@
 
 #include <rclcpp/logging.hpp>
 
-#include <cstdint>
-
 MotorControl::MotorControl() : Node("motor_control") {
     serial_.connect("/dev/ttyACM0");
 
@@ -15,9 +13,6 @@ MotorControl::MotorControl() : Node("motor_control") {
         RCLCPP_INFO(this->get_logger(), "Serial: connected to pico");
     }
 
-    // Initialize all motors disabled
-    frame_ = MotorCommandFrame{};
-
     constexpr int queue_size = 10;
     cmd_sub_ = this->create_subscription<serial_msg::msg::MotorCommand>(
         "/motor_command", queue_size,
@@ -25,34 +20,49 @@ MotorControl::MotorControl() : Node("motor_control") {
             this->cmd_callback(msg);
         });
 
-    send_timer_ = this->create_wall_timer(
-        std::chrono::milliseconds(50),
-        [this]() { this->send_frame(); });
+    // send_timer_ = this->create_wall_timer(std::chrono::milliseconds(50),
+    //                                       [this]() { this->send_frame(); });
 }
 
 void MotorControl::cmd_callback(const serial_msg::msg::MotorCommand &msg) {
-    if (msg.id >= 6) {
-        RCLCPP_WARN(this->get_logger(), "Invalid motor id: %u (must be 0-5)", msg.id);
-        return;
+    for (size_t i = 0; i < msg.ids.size(); ++i) {
+        const uint8_t id = msg.ids[i];
+        if (id >= motor_protocol::MOTOR_COUNT) {
+            RCLCPP_WARN(this->get_logger(),
+                        "Invalid motor id: %u (must be 0-5)", id);
+            continue;
+        }
+
+        auto &m = frame_.motors[id];
+        m.enable = msg.enable[i];
+        m.direction = msg.direction[i];
+        m.angle_set = msg.angle_set[i];
+        m.velocity_set = msg.velocity_set[i];
+        m.angle_value = msg.angle[i];
+        m.velocity_value = msg.velocity[i];
     }
 
-    MotorCommand *cmds[] = {&frame_.mid_foot,      &frame_.head,
-                            &frame_.left_shoulder, &frame_.right_shoulder,
-                            &frame_.left_foot,     &frame_.right_foot};
-
-    cmds[msg.id]->enabled   = msg.enable;
-    cmds[msg.id]->direction = msg.direction;
-    cmds[msg.id]->frequency = msg.frequency;
+    send_frame();
 }
 
 void MotorControl::send_frame() {
     if (!serial_.is_connected())
         return;
 
-    uint8_t buf[31];
-    buf[0] = 0xAA;
-    frame_.serialize(buf + 1);
+    buf_[0] = 0xAA;
+    if (!frame_.serialize(&buf_[1], buf_.size() - 1)) {
+        RCLCPP_WARN(this->get_logger(), "Failed to serialize frame");
+        return;
+    }
 
-    if (!serial_.write_data(buf, 31))
+    if (!serial_.write_data(buf_.data(), buf_.size()))
         RCLCPP_WARN(this->get_logger(), "Serial write failed");
+
+    // motor_protocol::Frame frame{};
+    // if (!frame.deserialize(&buf_[1], buf_.size() - 1)) {
+    //     RCLCPP_WARN(this->get_logger(), "Failed to deserialize frame");
+    //     return;
+    // }
+
+    // RCLCPP_INFO(this->get_logger(), "Frame:\n%s", frame.to_string().c_str());
 }
