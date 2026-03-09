@@ -4,6 +4,12 @@ Lid::Lid(Adafruit_PWMServoDriver &driver, uint8_t channel, uint16_t closePos, ui
   : _driver(driver), _channel(channel), _closePos(closePos), _openPos(openPos), _isInverted(isInverted){
 }
 
+void Lid::update(){
+    if (_pendingOff && (long)(millis() - _offAtMs) >=0){
+        _driver.setPWM(_channel, 0, 0);
+        _pendingOff = false;
+    }
+}
 uint8_t Lid::openLid(){
   if (!_isInverted){
     _driver.setPWM(_channel, 0, _openPos);
@@ -11,8 +17,8 @@ uint8_t Lid::openLid(){
   else{
     _driver.setPWM(_channel, 0, _closePos);
   }
-  delay(500);
-  _driver.setPWM(_channel, 0, 0);
+  _pendingOff = true;
+  _offAtMs = millis() + 500;
   return 0x00;
 }
 
@@ -23,8 +29,8 @@ uint8_t Lid::closeLid(){
   else {
     _driver.setPWM(_channel, 0, _openPos);
   }
-  delay(500);
-  _driver.setPWM(_channel, 0, 0);
+  _pendingOff = true;
+  _offAtMs = millis() + 500;
   return 0x00;
 }
 

@@ -28,6 +28,17 @@ SerialProcessor::SerialProcessor(Adafruit_PWMServoDriver &driver1, Adafruit_PWMS
 
 void SerialProcessor::updateAll(){
   cta.update();
+  lid1_1.update();
+  lid1_2.update();
+  lid1_3.update();
+  lid1_4.update();
+  lid1_5.update();
+  lid1_6.update();
+  lid2_1.update();
+  lid2_2.update();
+  lid2_3.update();
+  lid2_4.update();
+  lid2_5.update();
 }
 uint8_t SerialProcessor::listen(){
   // Wait for start-of-frame
