@@ -3,6 +3,13 @@
 /**/install/
 /**/log/
 
+# PlatformIO
+**/.pio/
+
+# Clangd cache
+**/.cache
+**/compile_commands.json
+
 # Python caches
 **/__pycache__/
 *.py[cod]

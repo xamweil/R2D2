@@ -1,0 +1,20 @@
+service := 'central-comm-new'
+
+default:
+    @just --list
+
+up:
+    docker compose down
+    docker compose up -d
+
+build:
+    docker compose build
+
+exec:
+    docker compose exec {{service}} bash
+
+docker-image-build:
+    docker build -t {{service}}:latest .
+
+docker-image-run:
+    docker run -it {{service}} bash

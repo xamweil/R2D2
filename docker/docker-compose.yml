@@ -1,0 +1,28 @@
+services:
+  central-comm-new:
+    build:
+      context: ..
+      dockerfile: ./docker/services/jetson-central-comm-new.Dockerfile 
+    image: central-comm-new:latest
+    container_name: central-comm-new
+    restart: unless-stopped
+    environment:
+      - OVERLAY_WS=/opt/ros/overlay_ws
+    volumes:
+      - "../Body/BodyJetson/central_comm/ros2_ws/src/:/opt/ros/overlay_ws/src/"
+      - "../Body/BodyJetson/central_comm/ros2_ws/Justfile:/opt/ros/overlay_ws/Justfile"
+      - build:/opt/ros/overlay_ws/build
+      - install:/opt/ros/overlay_ws/install
+      - log:/opt/ros/overlay_ws/log
+      # - "../Body/BodyPico_MotorControl/src/:/opt/pico/src/"
+      # - "../Body/BodyPico_MotorControl/lib/:/opt/pico/lib/"
+      # - "../Body/BodyPico_MotorControl/platformio.ini:/opt/pico/platformio.ini"
+      # - "../Body/BodyPico_MotorControl/build.py:/opt/pico/build.py"
+      # - "../Body/BodyPico_MotorControl/Justfile:/opt/pico/Justfile"
+    devices:
+      - /dev/ttyACM0
+      # - /dev/input/event5
+volumes:
+  build:
+  install:
+  log:
