@@ -15,7 +15,7 @@ if [ ! -f "install/setup.bash" ] || [ -z "$(ls -A build 2>/dev/null)" ]; then
   echo "[auto_launch] Building workspace (merged install, symlink)…"
   # One build, one consistent install prefix to get custom message type ref in setup.bash:
   colcon build --merge-install \
-  --packages-select tcp_msg serial_msg xiao_bridge body_mpu_reader
+  --packages-select tcp_msg serial_msg xiao_bridge body_mpu_reader motor_control
 else
   echo "[auto_launch] Using existing build/install."
 fi
@@ -71,6 +71,22 @@ run_body_imu() {
   done
 }
 
+run_motor_control() {
+  local logfile="${ROS_LOG_DIR}/motor_control.log"
+
+  echo "[motor_control] starting loop (log: ${logfile})"
+
+  while true; do
+    echo "[motor_control] $(date +'%F %T') starting process…"
+    stdbuf -oL -eL ros2 run motor_control motor_control \
+      >> "${logfile}" 2>&1 || true
+
+    rc=$?
+    echo "[motor_control] $(date +'%F %T') exited (rc=${rc}); retrying in 2s…" | tee -a "${logfile}"
+    sleep 2
+  done
+}
+
 # Trap signals and forward to children
 pids=()
 trap 'echo "[auto_launch] signal received, stopping…"; kill "${pids[@]}" 2>/dev/null || true; wait; exit 0' INT TERM
@@ -84,6 +100,9 @@ run_bridge left  "$ESP_L" "$PORT_L" "/leg_l" &
 pids+=($!)
 
 run_bridge right "$ESP_R" "$PORT_R" "/leg_r" &
+pids+=($!)
+
+run_motor_control &
 pids+=($!)
 
 # Keep PID 1 alive
