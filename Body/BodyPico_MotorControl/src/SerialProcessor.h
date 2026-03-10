@@ -1,21 +1,38 @@
 #pragma once
 
-#include "MotorControl.h"
+#include "HeadMotor.h"
 
 #include <array>
 #include <cstdint>
 
+
+
 class SerialProcessor {
-private:
-    static constexpr uint8_t SOF_ = 0xAA;
-
-    enum class State { WAIT_SOF, WAIT_PACKET, PROCESS };
-
-    std::array<uint8_t, MOTOR_COMMAND_FRAME_SIZE> buffer_ = {};
-    MotorControl *motor_control_;
-    State state_ = State::WAIT_SOF;
-
 public:
-    explicit SerialProcessor(MotorControl *motor_control);
+    static constexpr size_t MOTOR_COUNT = 6;
+    static constexpr size_t FRAME_SIZE = 34;
+
+    SerialProcessor();
+
+    void setup();
     void process();
+    void updateMotors();
+
+private:
+    std::array<uint8_t, FRAME_SIZE> buffer_{};
+    size_t index_ = 0;
+
+    std::array<HeadMotor, MOTOR_COUNT> motors_;
+
+    // Safety mask for development
+    std::array<bool, MOTOR_COUNT> motor_allowed_ = {
+        false,  // mid
+        true,   // head
+        false,  // shoulder_l
+        false,  // shoulder_r
+        false,  // drive_l
+        false   // drive_r
+    };
+
+    void _handleFrame();
 };
