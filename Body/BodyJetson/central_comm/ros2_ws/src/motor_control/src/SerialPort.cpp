@@ -23,10 +23,10 @@ SerialPort::SerialPort() : logger_(rclcpp::get_logger("serial")) {
 }
 
 bool SerialPort::connect(const char *port_name) {
+    disconnect();
+    port_name_ = port_name;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
     serial_port_fd_ = open(port_name, O_RDWR);
-
-    connected_ = false;
 
     if (serial_port_fd_ < 0) {
         return false;
@@ -34,6 +34,7 @@ bool SerialPort::connect(const char *port_name) {
 
     termios tty{};
     if (tcgetattr(serial_port_fd_, &tty) != 0) {
+        close(serial_port_fd_);
         return false;
     }
 
@@ -66,15 +67,14 @@ bool SerialPort::connect(const char *port_name) {
     cfsetispeed(&tty, baud_rate);
     cfsetospeed(&tty, baud_rate);
 
-    if (tcsetattr(serial_port_fd_, TCSANOW, &tty) == 0) {
-        connected_ = true;
+    if (tcsetattr(serial_port_fd_, TCSANOW, &tty) != 0) {
+        close(serial_port_fd_);
+        return false;
     }
 
-    if (connected_) {
-        listener_thread_ = std::thread(&SerialPort::listen, this);
-    }
-
-    return connected_;
+    connected_ = true;
+    listener_thread_ = std::thread(&SerialPort::listen, this);
+    return true;
 }
 
 std::string SerialPort::read_line() {
@@ -121,10 +121,19 @@ bool SerialPort::write_data(const uint8_t *data, size_t size) const {
     return bytes_written >= 0 && static_cast<size_t>(bytes_written) == size;
 }
 
+bool SerialPort::reconnect() {
+    disconnect();
+    if (port_name_.empty())
+        return false;
+    return connect(port_name_.c_str());
+}
+
 void SerialPort::disconnect() {
     if (connected_) {
         connected_ = false;
         close(serial_port_fd_);
+        if (listener_thread_.joinable())
+            listener_thread_.join();
     }
 }
 

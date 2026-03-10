@@ -22,10 +22,11 @@ find_package(serial_msg REQUIRED)
 # )
 # FetchContent_MakeAvailable(serial)
 
-file(GLOB_RECURSE SOURCES "src/*.cpp")
-# target_include_directories(${PROJECT_NAME} PRIVATE src)
-
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME}
+  src/main.cpp
+  src/MotorControl.cpp
+  src/SerialPort.cpp
+)
 
 ament_target_dependencies(${PROJECT_NAME} rclcpp serial_msg)
 # target_link_libraries(${PROJECT_NAME} serial)
