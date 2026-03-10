@@ -71,7 +71,7 @@ class HeadMotor {
         uint32_t _numSteps = 0; // number of steps since calculation started
         uint32_t _numStepsOld = 0; // number of steps at last update
         float _stepRemainder = 0.0f;
-        float _transmissionRatio = 15.9525;
+        float _transmissionRatio = 9.954545454;
 
         uint32_t _dfMax = 50; //maximum Frequency step per time
         uint32_t _maxFrequency = 5000;

@@ -52,17 +52,24 @@ void SerialProcessor::setup() {
 }
 
 void SerialProcessor::process() {
-
     while (Serial.available() > 0) {
+        uint8_t b = (uint8_t)Serial.read();
 
-        buffer_[index_++] = (uint8_t)Serial.read();
-
-        if (index_ < FRAME_SIZE)
+        if (index_ == 0) {
+            if (b != 0xAA) {
+                continue; // wait for SOF
+            }
+            index_ = 1;
             continue;
+        }
 
-        _handleFrame();
+        buffer_[index_ - 1] = b; // payload starts after SOF
+        ++index_;
 
-        index_ = 0;
+        if (index_ == FRAME_SIZE + 1) {
+            _handleFrame();
+            index_ = 0;
+        }
     }
 }
 
@@ -74,6 +81,7 @@ void SerialProcessor::updateMotors()
         {
             motors_[i].setEnabled(false);
             motors_[i].setTargetVelocity(0);
+            motors_[i].setAngleMode(false);
         }
 
         motors_[i].update();
@@ -81,7 +89,6 @@ void SerialProcessor::updateMotors()
 }
 
 void SerialProcessor::_handleFrame() {
-
     uint32_t control =
         (uint32_t)buffer_[0] |
         ((uint32_t)buffer_[1] << 8) |
@@ -89,37 +96,56 @@ void SerialProcessor::_handleFrame() {
         ((uint32_t)buffer_[3] << 24);
 
     for (size_t i = 0; i < MOTOR_COUNT; ++i) {
-
         HeadMotor &motor = motors_[i];
+
+        // Safety lock for disabled development motors
+        if (!motor_allowed_[i]) {
+            motor.setEnabled(false);
+            motor.setTargetVelocity(0);
+            motor.setAngleMode(false);
+            continue;
+        }
 
         uint32_t bits = (control >> (i * 4)) & 0x0F;
 
-        bool enable = bits & (1 << 0);
-        bool direction = bits & (1 << 1);
-        bool angle_set = bits & (1 << 2);
-        bool velocity_set = bits & (1 << 3);
+        bool enable       = (bits & (1U << 0)) != 0;
+        bool direction    = (bits & (1U << 1)) != 0;
+        bool angle_set    = (bits & (1U << 2)) != 0;
+        bool velocity_set = (bits & (1U << 3)) != 0;
 
         motor.setEnabled(enable);
         motor.setDirection(direction);
 
         size_t off = 4 + (i * 5);
 
-        float angle;
+        float angle = 0.0f;
         std::memcpy(&angle, &buffer_[off], sizeof(float));
 
         uint8_t velocity = buffer_[off + 4];
-        if (velocity > 100)
+        if (velocity > 100) {
             velocity = 100;
+        }
 
+        // angle command -> angle mode, velocity optional (default 50)
         if (angle_set) {
             motor.setAngleMode(true);
             motor.setTargetAngle(angle);
-        } else {
-            motor.setAngleMode(false);
-        }
 
-        if (velocity_set) {
+            if (velocity_set) {
+                motor.setTargetVelocity(velocity);   // Case 2
+            } else {
+                motor.setTargetVelocity(50);         // Case 1 default
+            }
+        }
+        // velocity command only -> starts moving with passed velocity
+        else if (velocity_set) {
+            motor.setAngleMode(false);
             motor.setTargetVelocity(velocity);
+        }
+        // Makes no sense, so just stop the motor
+        else {
+            motor.setAngleMode(false);
+            motor.setTargetVelocity(0);
         }
     }
 }

@@ -54,8 +54,10 @@ void HeadMotor::_setMotorState() {
 
     if (_frequency == 0) {
         pwm.setPWM(_pulsePin, 1000.0f, 0.0f);  // set to 0 over duty cycle not frequency
+        setEnabled(false); // Disable motor to reduce holding current
     } else {
         pwm.setPWM(_pulsePin, (float)_frequency, 50.0f);
+        setEnabled(true);
     }
 
     _lastUpdate = time_us_64();
@@ -69,7 +71,7 @@ void HeadMotor::homing() {
     while (digitalRead(_sensorPin) == HIGH) {
         // Wait until the sensor is triggered
     }
-    _currentAngle = 278;
+    _currentAngle = 228;
     _targetAngle = 0;
     _targetVelocity = 50;
 

@@ -17,7 +17,7 @@
 
   <!-- Runtime dependencies -->
   <depend>rclpy</depend>
-  <depend>example_interfaces</depend>
+  <!-- <depend>example_interfaces</depend> -->
   <depend>std_srvs</depend>
   <depend>tcp_msg</depend>
   
