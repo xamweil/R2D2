@@ -1,0 +1,39 @@
+FROM nvcr.io/nvidia/isaac/ros:aarch64-ros2_humble_adc428c7077de4984a00b63c55903b0a
+
+USER root
+WORKDIR /home/ros
+
+SHELL ["/bin/bash", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Basic tools + ROS packages 
+RUN apt-get update --allow-releaseinfo-change && apt-get install -y \
+    python3-pip \
+    python3-colcon-common-extensions \
+    python3-rosdep \
+    python3-vcstool \
+    ros-humble-sensor-msgs \
+    ros-humble-std-msgs \
+    ros-humble-vision-msgs \
+    ros-humble-image-transport \
+    ros-humble-compressed-image-transport \
+    ros-humble-cv-bridge \
+    python3-opencv \
+    nano \
+    git \
+    curl \
+ && rm -rf /var/lib/apt/lists/*
+
+# Lightweight Python deps for first tests
+RUN pip3 install --no-cache-dir \
+    numpy \
+    pyyaml \
+    cuda-python==12.6
+
+# Entrypoint scripts
+COPY docker/ros_entrypoint.sh /usr/local/bin/ros_entrypoint.sh
+COPY docker/auto_launch.sh    /usr/local/bin/auto_launch.sh
+RUN chmod +x /usr/local/bin/ros_entrypoint.sh /usr/local/bin/auto_launch.sh
+
+ENTRYPOINT ["/usr/local/bin/ros_entrypoint.sh"]
+CMD ["/usr/local/bin/auto_launch.sh"]

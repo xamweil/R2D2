@@ -20,3 +20,26 @@
 
 # Personal Data
 secrets.h
+
+# ===== Visual Perception Models =====
+
+# Raw ML models
+**/models/
+*.etlt
+*.onnx
+*.pt
+*.pth
+*.engine
+
+# TensorRT engines
+*.plan
+
+# Large datasets / videos
+*.bag
+*.mp4
+*.mkv
+*.avi
+
+# Temporary inference outputs
+inference_output/
+detections/
