@@ -69,10 +69,44 @@
         </div>
       </section>
 
-      <section class="panel panel-placeholder">
-        <h2>Head Control</h2>
-        <div class="placeholder-box">
-          Turn wheel / head control Placeholder
+      <section class="panel">
+        <h2>Head Rotation</h2>
+
+        <div id="head-control-panel" class="head-control-panel">
+          <div class="head-visual-panel">
+            <div class="head-visual-stage">
+              <div class="head-angle-ring"></div>
+
+              <div class="head-image-wrapper">
+                <img
+                  id="head-rotation-image"
+                  src="/static/assets/img/head-top-view.png"
+                  alt="Top view of robot head"
+                  draggable="false"
+                />
+              </div>
+
+              <div class="head-center-dot"></div>
+            </div>
+
+            <p id="head-angle-readout">Target angle: 0°</p>
+          </div>
+
+          <div class="head-command-panel">
+            <div id="head-toggle-row" class="head-toggle-row"></div>
+            <div id="head-input-grid" class="head-input-grid"></div>
+
+            <div class="head-command-buttons">
+              <button id="head-stop-button" type="button" class="head-command-button head-stop-button">
+                Stop
+              </button>
+              <button id="head-send-button" type="button" class="head-command-button">
+                Send Command
+              </button>
+            </div>
+
+            <p id="head-command-status">Head rotation control ready</p>
+          </div>
         </div>
       </section>
 
@@ -103,6 +137,21 @@
 
 
   <!-- Templates -->
+
+  <template id="head-toggle-group-template">
+  <div class="head-toggle-group">
+    <span class="head-toggle-label">Label</span>
+    <div class="head-toggle-buttons"></div>
+  </div>
+</template>
+
+<template id="head-input-row-template">
+  <div class="head-input-row">
+    <label>Label</label>
+    <input type="number" />
+  </div>
+</template>
+
   <template id="mpu-card-template">
   <article class="mpu-card">
     <h3 class="mpu-title">MPU Name</h3>
