@@ -2,12 +2,14 @@ import { initCameraPanel } from "./ui/cameraPanel.js";
 import { initMpuPanel, renderMpuState } from "./ui/mpuPanel.js";
 import { connectWebSocket } from "./api/websocket.js";
 import { initControlsPanel } from "./ui/controlsPanel.js";
+import { initHeadControlPanel } from "./ui/headControlPanel.js";
 
 console.log("main.js loaded");
 
 const cameraPanel = document.getElementById("camera-panel");
 const mpuPanel = document.getElementById("mpu-panel");
 const controlsPanel = document.getElementById("controls-panel");
+const headControlPanel = document.getElementById("head-control-panel");
 
 if(cameraPanel) {
     console.log("camera panel found");
@@ -29,6 +31,13 @@ if (controlsPanel) {
   initControlsPanel();
 } else {
   console.log("controls panel not found");
+}
+
+if (headControlPanel) {
+  console.log("head control panel found");
+  initHeadControlPanel();
+} else {
+  console.log("head control panel not found");
 }
 
 connectWebSocket({

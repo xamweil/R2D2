@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
 import os
 
-from .config import DEV_UNSAFE, STATE_PERIOD, STATE_HZ, STALE_SEC, ALLOWED_TOPICS, ALLOWED_SERVICES, NODE_NAME, CAMERA_PERIOD
+from .config import DEV_UNSAFE, STATE_PERIOD, STATE_HZ, STALE_SEC, ALLOWED_TOPICS, ALLOWED_SERVICES, NODE_NAME, CAMERA_PERIOD, ALLOWED_PUBLISH_TOPICS
 from .ros_types import RosCmd
 
 
@@ -66,6 +66,43 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
             reply_q=reply_q,
         ))
         return reply_q.get(timeout=body.timeout_sec + 1.0)
+
+    @app.post("/publish/allowed")
+    async def publish_allowed(payload: Dict[str, Any]):
+        alias = payload.get("alias")
+        msg = payload.get("msg")
+
+        if alias not in ALLOWED_PUBLISH_TOPICS:
+            raise HTTPException(status_code=400, detail=f"Unknown publish alias: {alias}")
+
+        if not isinstance(msg, dict):
+            raise HTTPException(status_code=400, detail="Field 'msg' must be an object")
+
+        info = ALLOWED_PUBLISH_TOPICS[alias]
+
+        reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
+        ros_cmd_q.put(
+            RosCmd(
+                kind="publish",
+                data={
+                    "alias": alias,
+                    "topic": info["name"],
+                    "type": info["type"],
+                    "msg": msg,
+                },
+                reply_q=reply_q,
+            )
+        )
+
+        try:
+            result = reply_q.get(timeout=2.0)
+        except queue.Empty:
+            raise HTTPException(status_code=504, detail="Publish request timed out")
+
+        if not result.get("ok"):
+            raise HTTPException(status_code=500, detail=result.get("error", "Publish failed"))
+
+        return {"ok": True}
 
     @app.get("/mjpeg")
     async def mjpeg():

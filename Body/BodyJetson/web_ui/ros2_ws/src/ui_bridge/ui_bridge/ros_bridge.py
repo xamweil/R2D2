@@ -8,7 +8,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.task import Future
 
-from .config import NODE_NAME, ALLOWED_TOPICS, STALE_SEC
+from .config import NODE_NAME, ALLOWED_TOPICS, STALE_SEC, ALLOWED_PUBLISH_TOPICS
 from .ros_introspection import import_msg_class, import_srv_class
 from .serialize import to_jsonable
 from .ros_types import RosCmd
@@ -21,6 +21,7 @@ class WebUiBridge(Node):
         super().__init__(NODE_NAME)
         self._subs: Dict[str, Tuple[Any, str]] = {}
         self._state: Dict[str, Dict[str, Any]] = {}
+        self._pubs: Dict[str, Tuple[Any, str]] = {}
 
         # MJPEG latest frame store
         self._cam_lock = threading.Lock()
@@ -35,6 +36,62 @@ class WebUiBridge(Node):
             "t": t,
             "data": to_jsonable(msg),
         }
+
+    def _fill_msg_fields(self, msg: Any, values: Dict[str, Any]) -> None:
+        """
+        Fill ROS message fields from a plain dict, with explicit coercion for
+        serial_msg/msg/MotorCommand field types.
+        """
+        def as_bool_list(v):
+            if not isinstance(v, (list, tuple)):
+                raise ValueError("expected a list")
+            return [bool(x) for x in v]
+
+        def as_uint8_list(v):
+            if not isinstance(v, (list, tuple)):
+                raise ValueError("expected a list")
+            out = []
+            for x in v:
+                n = int(x)
+                if n < 0 or n > 255:
+                    raise ValueError(f"uint8 value out of range: {n}")
+                out.append(n)
+            return out
+
+        def as_float_list(v):
+            if not isinstance(v, (list, tuple)):
+                raise ValueError("expected a list")
+            return [float(x) for x in v]
+
+        for key, value in values.items():
+            if not hasattr(msg, key):
+                raise ValueError(f"Message has no field '{key}'")
+
+            # Explicit coercion for MotorCommand fields
+            if key in ("ids", "velocity"):
+                coerced = as_uint8_list(value)
+            elif key in ("enable", "direction", "angle_set", "velocity_set"):
+                coerced = as_bool_list(value)
+            elif key == "angle":
+                coerced = as_float_list(value)
+            else:
+                coerced = value
+
+            setattr(msg, key, coerced)
+
+    def publish_alias(self, alias: str, topic_name: str, msg_type_str: str, msg_dict: Dict[str, Any]) -> None:
+        if alias not in self._pubs:
+            msg_cls = import_msg_class(msg_type_str)
+            pub = self.create_publisher(msg_cls, topic_name, 10)
+            self._pubs[alias] = (pub, msg_type_str)
+        else:
+            pub, _ = self._pubs[alias]
+            msg_cls = import_msg_class(msg_type_str)
+
+        msg = msg_cls()
+        self._fill_msg_fields(msg, msg_dict)
+        pub.publish(msg)
+
 
     def subscribe_alias(self, alias: str, topic_name: str, msg_type_str: str) -> None:
         if alias in self._subs:
@@ -238,6 +295,15 @@ def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
                         cmd.reply_q.put(res)
                     else:
                         cmd.reply_q.put({"ok": True, "jpeg": res["jpeg"], "t": res["t"]})
+
+                elif cmd.kind == "publish":
+                    alias = cmd.data["alias"]
+                    topic = cmd.data["topic"]
+                    msg_type = cmd.data["type"]
+                    msg = cmd.data["msg"]
+
+                    node.publish_alias(alias, topic, msg_type, msg)
+                    cmd.reply_q.put({"ok": True})
 
                 else:
                     cmd.reply_q.put({"ok": False, "error": f"unknown_cmd_kind:{cmd.kind}"})
