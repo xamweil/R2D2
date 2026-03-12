@@ -21,6 +21,11 @@ ALLOWED_TOPICS: Dict[str, Dict[str, str]] = {
 
     "camera_info": {"name": "/camera/camera_info", "type": "sensor_msgs/msg/CameraInfo"},
     "image_raw_compressed": {"name": "/camera/image_raw/compressed", "type": "sensor_msgs/msg/CompressedImage"},
+
+    "scene_detections": {
+    "name": "/scene_understanding/detections",
+    "type": "vision_msgs/msg/Detection2DArray",
+},
 }
 
 ALLOWED_SERVICES: Dict[str, Dict[str, str]] = {

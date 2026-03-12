@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     ros-$ROS_DISTRO-std-msgs \
     ros-$ROS_DISTRO-image-transport \
     ros-$ROS_DISTRO-compressed-image-transport \
+    ros-humble-vision-msgs \
  && rm -rf /var/lib/apt/lists/*
 
 # FastAPI stack

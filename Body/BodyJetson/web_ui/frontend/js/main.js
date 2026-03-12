@@ -3,6 +3,7 @@ import { initMpuPanel, renderMpuState } from "./ui/mpuPanel.js";
 import { connectWebSocket } from "./api/websocket.js";
 import { initControlsPanel } from "./ui/controlsPanel.js";
 import { initHeadControlPanel } from "./ui/headControlPanel.js";
+import { initCameraControlsPanel } from "./ui/cameraControlsPanel.js";
 
 console.log("main.js loaded");
 
@@ -11,9 +12,11 @@ const mpuPanel = document.getElementById("mpu-panel");
 const controlsPanel = document.getElementById("controls-panel");
 const headControlPanel = document.getElementById("head-control-panel");
 
+
 if(cameraPanel) {
     console.log("camera panel found");
     initCameraPanel();
+    initCameraControlsPanel();
 } 
 else {
     console.log("camera panel not found");
@@ -46,6 +49,10 @@ connectWebSocket({
   },
   onRobotState(payload) {
     renderMpuState(payload);
+    const detections = payload?.entries?.scene_detections;
+    if (detections) {
+      console.log("scene_detections entry", detections);
+  }
   },
   onError(error) {
     console.error("ws error", error);

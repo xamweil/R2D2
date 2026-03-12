@@ -24,7 +24,6 @@ secrets.h
 # ===== Visual Perception Models =====
 
 # Raw ML models
-**/models/
 *.etlt
 *.onnx
 *.pt

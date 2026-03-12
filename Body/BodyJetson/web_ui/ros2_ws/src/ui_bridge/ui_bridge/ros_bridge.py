@@ -239,6 +239,7 @@ def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
         "imu_body",
         "camera_info",
         "image_raw_compressed",
+        "scene_detections",
     }
 
     for alias in PRE_SUBSCRIBE_ALIASES:

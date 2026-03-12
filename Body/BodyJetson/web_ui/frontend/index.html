@@ -20,41 +20,45 @@
     <h1>R2D2</h1>
     
     <div class="dashboard-grid">
-      <section class="panel panel-placeholder">
-        <h2>Robot State</h2>
-        <div class="placeholder-box placeholder-tall">
-          3D Model / robot animation placeholder
-        </div>
-      </section>
 
-      <section class="panel">
+      <section class="panel panel-wide">
         <h2>Camera</h2>
 
         <div id="camera-panel">
           <div id="camera-frame">
-            <img id="camera-image" alt="" />
+            <img id="camera-image" alt="Camera feed" />
+            <div id="camera-overlay"></div>
             <p id="camera-status">Camera feed not connected yet</p>
           </div>
 
-          <div class="camera-control-panel">
-            <div class="camera-control-top">
-              <div class="camera-control-row">
-                <label for="camera-position-input">Position</label>
-                <input id="camera-position-input" type="number" value="45" />
+          <div class="camera-controls-grid">
+            <section class="camera-control-panel">
+              <h3>Camera Tilt</h3>
+
+              <div id="camera-tilt-top" class="camera-control-top">
+                <div id="camera-tilt-inputs"></div>
+
+                <div class="camera-actions">
+                  <button id="camera-retry-button" type="button">Reconnect camera</button>
+                </div>
               </div>
 
-              <div class="camera-actions">
-                <button id="camera-retry-button" type="button">Reconnect camera</button>
+              <div class="camera-control-buttons">
+                <button id="camera-setpos-button" type="button">Set Position</button>
+                <button id="camera-default-button" type="button">Default</button>
+                <button id="camera-low-button" type="button">Low</button>
               </div>
-            </div>
 
-            <div class="camera-control-buttons">
-              <button id="camera-setpos-button" type="button">Set Position</button>
-              <button id="camera-default-button" type="button">Default</button>
-              <button id="camera-low-button" type="button">Low</button>
-            </div>
+              <p id="camera-control-status">Camera tilt control ready</p>
+            </section>
 
-            <p id="camera-control-status">Camera tilt control ready</p>
+            <section class="camera-control-panel">
+              <h3>Scene Understanding</h3>
+
+              <div id="camera-vision-controls" class="camera-vision-controls"></div>
+
+              <p id="camera-vision-status">Scene understanding overlay ready</p>
+            </section>
           </div>
         </div>
       </section>
@@ -209,6 +213,20 @@
     <h4 class="action-title">Action Name</h4>
     <button class="control-button action-trigger-button" type="button">Run</button>
   </article>
+</template>
+
+<template id="camera-control-row-template">
+  <div class="camera-control-row">
+    <label>Label</label>
+    <input type="number" />
+  </div>
+</template>
+
+<template id="camera-toggle-row-template">
+  <div class="camera-vision-toggle-row">
+    <span class="camera-vision-label">Label</span>
+    <button type="button" class="camera-vision-toggle-button">Off</button>
+  </div>
 </template>
 
   <!--<script type="module" src="./js/main.js"></script>--> 

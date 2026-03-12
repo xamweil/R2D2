@@ -35,12 +35,12 @@
 
 /* Camera */
 #camera-frame {
-    min-height: 180px;
+    min-height: 380px;
     border: 1px solid rgba(210, 220, 235, 0.18);
     border-radius: 18px;
     background:
-        radial-gradient(circle at top, rgba(70, 145, 255, 0.12), transparent 45%),
-        linear-gradient(180deg, #14253a 0%, #0e1724 100%);
+    radial-gradient(circle at top, rgba(70, 145, 255, 0.12), transparent 45%),
+    linear-gradient(180deg, #14253a 0%, #0e1724 100%);
     position: relative;
     overflow: hidden;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -58,12 +58,14 @@
     font-size: 1rem;
     text-align: center;
     background: rgba(8, 18, 32, 0.18);
+    z-index: 3;
 }
 
 #camera-image {
     display: none;
     width: 100%;
     height: auto;
+    display: block;
 }
 
 .camera-actions {
@@ -88,6 +90,11 @@
     radial-gradient(circle at top, rgba(70, 145, 255, 0.08), transparent 45%),
     linear-gradient(180deg, #14253a 0%, #0e1724 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.camera-control-panel h3 {
+  margin-top: 0;
+  margin-bottom: 14px;
 }
 
 .camera-control-row {
@@ -161,6 +168,78 @@
     .mpu-grid {
     grid-template-columns: 1fr;
   }
+    .camera-controls-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .camera-control-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .camera-actions {
+    width: 100%;
+  }
+
+  .camera-actions button {
+    width: 100%;
+  }
+
+  .camera-vision-toggle-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .camera-vision-toggle-button {
+    width: 100%;
+  }
+
+}
+
+#camera-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.camera-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.camera-vision-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.camera-vision-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.camera-vision-label {
+  color: #b8c7e6;
+}
+
+.camera-vision-toggle-button {
+  min-width: 90px;
+  padding: 8px 12px;
+  border: 1px solid #8eb4ff;
+  border-radius: 10px;
+  background-color: #14253a;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+#camera-vision-status {
+  margin: 14px 0 0 0;
+  color: #cfcfcf;
 }
 
 /*MPU grid*/
