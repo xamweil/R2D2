@@ -45,8 +45,8 @@ services:
             - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
             - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
             - ROS_LOG_DIR=/home/ros/.ros/log
-            - CAM_WIDTH=1280
-            - CAM_HEIGHT=720
+            - CAM_WIDTH=640
+            - CAM_HEIGHT=360
             - CAM_FPS=30
             - CAM_FRAME_ID=camera_optical_frame
             - CAM_NODE_NAME=camera
