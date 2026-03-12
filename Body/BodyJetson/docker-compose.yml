@@ -73,7 +73,7 @@ services:
       - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
       - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
       - ROS_LOG_DIR=/home/ros/.ros/log
-      - FORCE_REBUILD=
+      - AUTO_BUILD_ENGINE=1
     volumes:
       - ./ros_network/cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
 

@@ -27,5 +27,14 @@ fi
 echo "[visual_perception:auto_launch] Fetching required models if missing..."
 python3 /home/ros/models/fetch_models.py
 
-echo "[visual_perception:auto_launch] Container ready. Staying alive."
-exec tail -f /dev/null
+ENGINE_PATH="/home/ros/models/yolov8n/yolov8n.engine"
+
+if [ ! -f "${ENGINE_PATH}" ]; then
+  echo "[visual_perception:auto_launch] Engine missing -> building ${ENGINE_PATH}"
+  python3 /home/ros/models/prepare_models.py --build yolov8n
+else
+  echo "[visual_perception:auto_launch] Engine already present: ${ENGINE_PATH}"
+fi
+
+echo "[visual_perception:auto_launch] Launching scene_understanding..."
+exec ros2 launch scene_understanding scene_understanding.launch.py
