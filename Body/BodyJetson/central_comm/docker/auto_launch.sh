@@ -15,7 +15,7 @@ if [ ! -f "install/setup.bash" ] || [ -z "$(ls -A build 2>/dev/null)" ]; then
   echo "[auto_launch] Building workspace (merged install, symlink)…"
   # One build, one consistent install prefix to get custom message type ref in setup.bash:
   colcon build --merge-install \
-  --packages-select tcp_msg serial_msg xiao_bridge body_mpu_reader motor_control
+    --packages-select tcp_msg serial_msg xiao_bridge body_mpu_reader motor_control
 else
   echo "[auto_launch] Using existing build/install."
 fi
@@ -26,8 +26,6 @@ ESP_L=192.168.66.10
 ESP_R=192.168.66.11
 PORT_L=5010
 PORT_R=5011
-
-
 
 # Helper for node launch
 run_bridge() {
@@ -42,7 +40,7 @@ run_bridge() {
     # run the node; if it fails it exits and retries in 2s
     stdbuf -oL -eL ros2 run xiao_bridge bridge_node \
       --ros-args -p ip:=${ip} -p port:=${port} -r __ns:=${ns} \
-      >> "${logfile}" 2>&1 || true
+      >>"${logfile}" 2>&1 || true
 
     rc=$?
     echo "[bridge:${name}] $(date +'%F %T') exited (rc=${rc}); retrying in 2s…" | tee -a "${logfile}"
@@ -63,7 +61,7 @@ run_body_imu() {
     echo "[body_mpu] $(date +'%F %T') starting process…"
     stdbuf -oL -eL ros2 run body_mpu_reader body_mpu_node \
       --ros-args -p i2c_bus:=${bus} -p i2c_address:=${addr} -p publish_rate:=${rate} -p topic_name:=${topic} \
-      >> "${logfile}" 2>&1 || true
+      >>"${logfile}" 2>&1 || true
 
     rc=$?
     echo "[body_mpu] $(date +'%F %T') exited (rc=${rc}); retrying in 2s…" | tee -a "${logfile}"
@@ -71,21 +69,21 @@ run_body_imu() {
   done
 }
 
-run_motor_control() {
-  local logfile="${ROS_LOG_DIR}/motor_control.log"
-
-  echo "[motor_control] starting loop (log: ${logfile})"
-
-  while true; do
-    echo "[motor_control] $(date +'%F %T') starting process…"
-    stdbuf -oL -eL ros2 run motor_control motor_control \
-      >> "${logfile}" 2>&1 || true
-
-    rc=$?
-    echo "[motor_control] $(date +'%F %T') exited (rc=${rc}); retrying in 2s…" | tee -a "${logfile}"
-    sleep 2
-  done
-}
+# run_motor_control() {
+#   local logfile="${ROS_LOG_DIR}/motor_control.log"
+#
+#   echo "[motor_control] starting loop (log: ${logfile})"
+#
+#   while true; do
+#     echo "[motor_control] $(date +'%F %T') starting process…"
+#     stdbuf -oL -eL ros2 run motor_control motor_control \
+#       >> "${logfile}" 2>&1 || true
+#
+#     rc=$?
+#     echo "[motor_control] $(date +'%F %T') exited (rc=${rc}); retrying in 2s…" | tee -a "${logfile}"
+#     sleep 2
+#   done
+# }
 
 # Trap signals and forward to children
 pids=()
@@ -96,16 +94,16 @@ run_body_imu 7 0x68 50.0 "/Body/mpu" &
 pids+=($!)
 
 # Launches both bridges (independent retries)
-run_bridge left  "$ESP_L" "$PORT_L" "/leg_l" &
+run_bridge left "$ESP_L" "$PORT_L" "/leg_l" &
 pids+=($!)
 
 run_bridge right "$ESP_R" "$PORT_R" "/leg_r" &
 pids+=($!)
 
-run_motor_control &
-pids+=($!)
+# run_motor_control &
+# pids+=($!)
 
 # Keep PID 1 alive
 wait -n || true
- # If one dies, it still waits
- wait
+# If one dies, it still waits
+wait

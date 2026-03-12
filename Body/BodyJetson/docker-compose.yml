@@ -26,6 +26,7 @@ services:
       #- /dev/ttyUSB0:/dev/ttyUSB0        
       #- /dev/ttyUSB1:/dev/ttyUSB1        
       - /dev/i2c-7:/dev/i2c-7            # I²C
+      - /dev/input/event5:/dev/input/event5
 
   web_ui:
     user: root

@@ -8,6 +8,7 @@
 #include <rclcpp/subscription.hpp>
 #include <rclcpp/timer.hpp>
 #include <rclcpp/utilities.hpp>
+#include <sensor_msgs/msg/joy.hpp>
 #include <serial_msg/msg/motor_command.hpp>
 
 class MotorControl : public rclcpp::Node {
@@ -22,11 +23,13 @@ private:
     motor_protocol::Frame frame_{};
     bool dirty_ = false;
     rclcpp::Subscription<serial_msg::msg::MotorCommand>::SharedPtr cmd_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
     rclcpp::TimerBase::SharedPtr cooldown_timer_;
     rclcpp::TimerBase::SharedPtr reconnect_timer_;
     SerialPort serial_;
 
     void cmd_callback(const serial_msg::msg::MotorCommand &msg);
+    void joy_callback(const sensor_msgs::msg::Joy &msg);
     void schedule_send();
     void on_cooldown_expire();
     void send_frame();

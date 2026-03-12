@@ -13,6 +13,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(serial_msg REQUIRED)
+find_package(sensor_msgs REQUIRED)
 
 # include(FetchContent)
 # FetchContent_Declare(
@@ -28,7 +29,7 @@ add_executable(${PROJECT_NAME}
   src/SerialPort.cpp
 )
 
-ament_target_dependencies(${PROJECT_NAME} rclcpp serial_msg)
+ament_target_dependencies(${PROJECT_NAME} rclcpp serial_msg sensor_msgs)
 # target_link_libraries(${PROJECT_NAME} serial)
 #
 # target_include_directories(${PROJECT_NAME} PRIVATE

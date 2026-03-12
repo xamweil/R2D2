@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip3 install --no-cache-dir pyserial
 
-COPY ros2_ws/ ${WS}/
+COPY ros2_ws/src ${WS}/src
 
 RUN rosdep update && \
     . /opt/ros/${ROS_DISTRO}/setup.sh && \

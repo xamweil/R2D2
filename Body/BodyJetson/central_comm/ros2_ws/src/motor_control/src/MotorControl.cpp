@@ -23,6 +23,29 @@ MotorControl::MotorControl() : Node("motor_control") {
         [this](const serial_msg::msg::MotorCommand &msg) {
             this->cmd_callback(msg);
         });
+
+    joy_sub_ = this->create_subscription<sensor_msgs::msg::Joy>(
+        "/joy", queue_size,
+        [this](const sensor_msgs::msg::Joy &msg) { this->joy_callback(msg); });
+}
+
+void MotorControl::joy_callback(const sensor_msgs::msg::Joy &msg) {
+    std::string axes_str;
+    for (size_t i = 0; i < msg.axes.size(); ++i) {
+        if (i > 0)
+            axes_str += ", ";
+        axes_str += std::to_string(msg.axes[i]);
+    }
+
+    std::string buttons_str;
+    for (size_t i = 0; i < msg.buttons.size(); ++i) {
+        if (i > 0)
+            buttons_str += ", ";
+        buttons_str += std::to_string(msg.buttons[i]);
+    }
+
+    RCLCPP_INFO(this->get_logger(), "Joy axes: [%s] buttons: [%s]",
+                axes_str.c_str(), buttons_str.c_str());
 }
 
 void MotorControl::cmd_callback(const serial_msg::msg::MotorCommand &msg) {
