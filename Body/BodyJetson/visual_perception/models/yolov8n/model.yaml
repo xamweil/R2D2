@@ -1,0 +1,12 @@
+name: yolov8n
+
+artifacts:
+  - path: yolov8n.onnx
+    url: https://huggingface.co/SpotLab/YOLOv8Detection/resolve/3005c6751fb19cdeb6b10c066185908faf66a097/yolov8n.onnx
+
+build:
+  builder: trtexec
+  source: yolov8n.onnx
+  engine: yolov8n.engine
+  precision: fp16
+  extra_args: []
