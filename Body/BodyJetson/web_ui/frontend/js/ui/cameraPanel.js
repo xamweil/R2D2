@@ -1,5 +1,98 @@
 import { callDeviceCommand } from "../api/deviceService.js";
 
+const MODEL_WIDTH = 640;
+const MODEL_HEIGHT = 640;
+
+const SOURCE_WIDTH = 640;
+const SOURCE_HEIGHT = 360;
+
+const PAD_X = 0;
+const PAD_Y = (MODEL_HEIGHT - SOURCE_HEIGHT) / 2; // 140
+
+//for YOLOv8n
+const CLASS_LABELS = {
+  "0": "person",
+  "1": "bicycle",
+  "2": "car",
+  "3": "motorcycle",
+  "4": "airplane",
+  "5": "bus",
+  "6": "train",
+  "7": "truck",
+  "8": "boat",
+  "9": "traffic light",
+  "10": "fire hydrant",
+  "11": "stop sign",
+  "12": "parking meter",
+  "13": "bench",
+  "14": "bird",
+  "15": "cat",
+  "16": "dog",
+  "17": "horse",
+  "18": "sheep",
+  "19": "cow",
+  "20": "elephant",
+  "21": "bear",
+  "22": "zebra",
+  "23": "giraffe",
+  "24": "backpack",
+  "25": "umbrella",
+  "26": "handbag",
+  "27": "tie",
+  "28": "suitcase",
+  "29": "frisbee",
+  "30": "skis",
+  "31": "snowboard",
+  "32": "sports ball",
+  "33": "kite",
+  "34": "baseball bat",
+  "35": "baseball glove",
+  "36": "skateboard",
+  "37": "surfboard",
+  "38": "tennis racket",
+  "39": "bottle",
+  "40": "wine glass",
+  "41": "cup",
+  "42": "fork",
+  "43": "knife",
+  "44": "spoon",
+  "45": "bowl",
+  "46": "banana",
+  "47": "apple",
+  "48": "sandwich",
+  "49": "orange",
+  "50": "broccoli",
+  "51": "carrot",
+  "52": "hot dog",
+  "53": "pizza",
+  "54": "donut",
+  "55": "cake",
+  "56": "chair",
+  "57": "couch",
+  "58": "potted plant",
+  "59": "bed",
+  "60": "dining table",
+  "61": "toilet",
+  "62": "tv",
+  "63": "laptop",
+  "64": "mouse",
+  "65": "remote",
+  "66": "keyboard",
+  "67": "cell phone",
+  "68": "microwave",
+  "69": "oven",
+  "70": "toaster",
+  "71": "sink",
+  "72": "refrigerator",
+  "73": "book",
+  "74": "clock",
+  "75": "vase",
+  "76": "scissors",
+  "77": "teddy bear",
+  "78": "hair drier",
+  "79": "toothbrush"
+};
+
 const CAMERA_TILT_DEVICE = "CameraTilt";
 
 function startCameraStream() {
@@ -23,6 +116,7 @@ function startCameraStream() {
         console.log("cameraPanel: stream image loaded");
         cameraImage.style.display = "block";
         cameraStatus.style.display = "none";
+        renderDetectionOverlay();
     };
 
     cameraImage.onerror = (event) => {
@@ -87,6 +181,220 @@ async function runCameraTiltCommand(methodName, args = []) {
   setCameraControlButtonsDisabled(false);
 }
 
+let latestSceneDetections = null;
+let showDetections = false;
+let showLabels = true;
+
+function getCameraOverlay() {
+  return document.getElementById("camera-overlay");
+}
+
+function getCameraImage() {
+  return document.getElementById("camera-image");
+}
+
+function getDetectionCenter(det) {
+  return det?.bbox?.center?.position ?? null;
+}
+
+function getDetectionResult(det) {
+  return det?.results?.[0] ?? null;
+}
+
+function getDetectionClassId(det) {
+  const result = getDetectionResult(det);
+  if (!result) return "";
+
+  if (result.hypothesis?.class_id !== undefined) {
+    return String(result.hypothesis.class_id);
+  }
+
+  if (result.class_id !== undefined) {
+    return String(result.class_id);
+  }
+
+  return "";
+}
+
+function getDetectionScore(det) {
+  const result = getDetectionResult(det);
+  if (!result) return null;
+
+  if (result.hypothesis?.score !== undefined) {
+    return Number(result.hypothesis.score);
+  }
+
+  if (result.score !== undefined) {
+    return Number(result.score);
+  }
+
+  return null;
+}
+
+function getDetectionLabel(det) {
+  const classId = getDetectionClassId(det);
+  return CLASS_LABELS[classId] ?? classId ?? "";
+}
+
+function detectionToCorners(det) {
+  const center = getDetectionCenter(det);
+  if (!center) return null;
+
+  let cx = Number(center.x);
+  let cy = Number(center.y);
+  let w = Number(det?.bbox?.size_x);
+  let h = Number(det?.bbox?.size_y);
+
+  if (![cx, cy, w, h].every(Number.isFinite)) {
+    return null;
+  }
+
+  cx *= MODEL_WIDTH;
+  cy *= MODEL_HEIGHT;
+  w *= MODEL_WIDTH;
+  h *= MODEL_HEIGHT;
+
+  return {
+    x1: cx - w / 2,
+    y1: cy - h / 2,
+    x2: cx + w / 2,
+    y2: cy + h / 2,
+  };
+}
+
+function getDisplayedImageRect() {
+  const image = getCameraImage();
+  const frame = document.getElementById("camera-frame");
+
+  if (!image || !frame) return null;
+  if (!image.complete) return null;
+
+  const frameRect = frame.getBoundingClientRect();
+  const imageRect = image.getBoundingClientRect();
+
+  return {
+    left: imageRect.left - frameRect.left,
+    top: imageRect.top - frameRect.top,
+    width: imageRect.width,
+    height: imageRect.height,
+  };
+}
+
+function clearCameraOverlay() {
+  const overlay = getCameraOverlay();
+  if (!overlay) return;
+  overlay.innerHTML = "";
+}
+
+function renderDetectionBox(det, imageRect) {
+  const overlay = getCameraOverlay();
+  if (!overlay) return;
+
+  const corners = detectionToCorners(det);
+  if (!corners) return;
+
+  const x1 = corners.x1 - PAD_X;
+  const x2 = corners.x2 - PAD_X;
+  const y1 = corners.y1 - PAD_Y;
+  const y2 = corners.y2 - PAD_Y;
+
+  // Clip to the real image area inside the letterboxed model space
+  const clippedX1 = Math.max(0, Math.min(SOURCE_WIDTH, x1));
+  const clippedX2 = Math.max(0, Math.min(SOURCE_WIDTH, x2));
+  const clippedY1 = Math.max(0, Math.min(SOURCE_HEIGHT, y1));
+  const clippedY2 = Math.max(0, Math.min(SOURCE_HEIGHT, y2));
+
+  const scaleX = imageRect.width / SOURCE_WIDTH;
+  const scaleY = imageRect.height / SOURCE_HEIGHT;
+
+  const left = imageRect.left + clippedX1 * scaleX;
+  const top = imageRect.top + clippedY1 * scaleY;
+  const width = Math.max(0, (clippedX2 - clippedX1) * scaleX);
+  const height = Math.max(0, (clippedY2 - clippedY1) * scaleY);
+
+  if (width <= 1 || height <= 1) {
+    return;
+  }
+
+  const box = document.createElement("div");
+  box.className = "camera-detection-box";
+  box.style.left = `${left}px`;
+  box.style.top = `${top}px`;
+  box.style.width = `${width}px`;
+  box.style.height = `${height}px`;
+
+  if (showLabels) {
+    const label = document.createElement("div");
+    label.className = "camera-detection-label";
+
+    const text = getDetectionLabel(det);
+    const score = getDetectionScore(det);
+
+    if (Number.isFinite(score)) {
+      label.textContent = `${text} ${score.toFixed(2)}`;
+    } else {
+      label.textContent = text;
+    }
+
+    box.appendChild(label);
+  }
+
+  overlay.appendChild(box);
+}
+
+function renderDetectionOverlay() {
+  clearCameraOverlay();
+
+  if (!showDetections) return;
+  if (!latestSceneDetections?.data?.detections?.length) return;
+
+  const imageRect = getDisplayedImageRect();
+  if (!imageRect || imageRect.width <= 0 || imageRect.height <= 0) return;
+
+  for (const det of latestSceneDetections.data.detections) {
+    renderDetectionBox(det, imageRect);
+  }
+}
+
+function updateDetectionToggleUi() {
+  const detectionsButton = document.getElementById("camera-detections-toggle");
+  const labelsButton = document.getElementById("camera-labels-toggle");
+
+  if (detectionsButton) {
+    detectionsButton.textContent = showDetections ? "On" : "Off";
+    detectionsButton.classList.toggle("is-active", showDetections);
+  }
+
+  if (labelsButton) {
+    labelsButton.textContent = showLabels ? "On" : "Off";
+    labelsButton.classList.toggle("is-active", showLabels);
+  }
+}
+
+function attachDetectionToggleBehavior() {
+  const detectionsButton = document.getElementById("camera-detections-toggle");
+  const labelsButton = document.getElementById("camera-labels-toggle");
+
+  detectionsButton?.addEventListener("click", () => {
+    showDetections = !showDetections;
+    updateDetectionToggleUi();
+    renderDetectionOverlay();
+  });
+
+  labelsButton?.addEventListener("click", () => {
+    showLabels = !showLabels;
+    updateDetectionToggleUi();
+    renderDetectionOverlay();
+  });
+
+  updateDetectionToggleUi();
+}
+
+export function updateSceneDetections(entry) {
+  latestSceneDetections = entry;
+  renderDetectionOverlay();
+}
+
 export function initCameraPanel() {
     const retryButton = document.getElementById("camera-retry-button");
     const setPosButton = document.getElementById("camera-setpos-button");
@@ -118,6 +426,9 @@ export function initCameraPanel() {
   lowButton?.addEventListener("click", () => {
     runCameraTiltCommand("low_pos", []);
   });
+
+  attachDetectionToggleBehavior();
+  window.addEventListener("resize", renderDetectionOverlay);
 
     startCameraStream();
 }
