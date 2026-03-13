@@ -12,7 +12,7 @@ def generate_launch_description():
 
         parameters=[
             {
-                "image_topic": "/camera/image_raw",
+                "image_topic": "/relay/camera/image_raw",
                 "detection_topic": "/scene_understanding/detections",
                 "engine_path": "/home/ros/models/yolov8n/yolov8n.engine",
             }
