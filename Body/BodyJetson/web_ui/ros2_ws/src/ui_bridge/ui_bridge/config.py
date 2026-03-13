@@ -19,8 +19,8 @@ ALLOWED_TOPICS: Dict[str, Dict[str, str]] = {
     "imu_right_leg": {"name": "/leg_r/imu/leg", "type": "tcp_msg/msg/MPU6500Sample"},
     "imu_body": {"name": "/Body/mpu", "type": "tcp_msg/msg/MPU6500Sample"},
 
-    "camera_info": {"name": "/camera/camera_info", "type": "sensor_msgs/msg/CameraInfo"},
-    "image_raw_compressed": {"name": "/camera/image_raw/compressed", "type": "sensor_msgs/msg/CompressedImage"},
+    "camera_info": {"name": "/relay/camera/camera_info", "type": "sensor_msgs/msg/CameraInfo"},
+    "image_raw_compressed": {"name": "/relay/camera/image_raw/compressed", "type": "sensor_msgs/msg/CompressedImage"},
 
     "scene_detections": {
     "name": "/scene_understanding/detections",

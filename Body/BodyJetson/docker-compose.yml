@@ -86,3 +86,38 @@ services:
 
       # Configs / helper files
       - ./visual_perception/config:/home/ros/config:rw
+
+  camera_relay:
+    user: root
+    build:
+      context: ./camera_relay
+      dockerfile: Dockerfile
+    image: bodyjetson/camera_relay:latest
+    container_name: camera_relay
+    network_mode: host
+    restart: unless-stopped
+    runtime: nvidia
+    environment:
+      - ROS_DOMAIN_ID=0
+      - ROS_LOCALHOST_ONLY=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
+      - ROS_LOG_DIR=/home/ros/.ros/log
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+
+      # Launch parameters for camera_relay.launch.py
+      - INPUT_COMPRESSED_TOPIC=/camera/image_raw/compressed
+      - INPUT_CAMERA_INFO_TOPIC=/camera/camera_info
+      - OUTPUT_COMPRESSED_TOPIC=/relay/camera/image_raw/compressed
+      - OUTPUT_RAW_TOPIC=/relay/camera/image_raw
+      - OUTPUT_CAMERA_INFO_TOPIC=/relay/camera/camera_info
+
+    volumes:
+      - ./ros_network/cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
+
+      # Workspace
+      - ./camera_relay/ros2_ws/src:/home/ros/ros2_ws/src:rw
+      - ./camera_relay/ros2_ws/build:/home/ros/ros2_ws/build:rw
+      - ./camera_relay/ros2_ws/install:/home/ros/ros2_ws/install:rw
+      - ./camera_relay/ros2_ws/log:/home/ros/.ros/log:rw

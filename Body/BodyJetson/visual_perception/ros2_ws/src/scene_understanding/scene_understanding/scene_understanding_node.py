@@ -19,7 +19,7 @@ class SceneUnderstandingNode(Node):
 
         super().__init__("scene_understanding")
 
-        self.declare_parameter("image_topic", "/camera/image_raw")
+        self.declare_parameter("image_topic", "/relay/camera/image_raw")
         self.declare_parameter("detection_topic", "/scene_understanding/detections")
         self.declare_parameter("engine_path", "/home/ros/models/yolov8n/yolov8n.engine")
 
