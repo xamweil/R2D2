@@ -36,5 +36,5 @@ else
   echo "[visual_perception:auto_launch] Engine already present: ${ENGINE_PATH}"
 fi
 
-echo "[visual_perception:auto_launch] Launching scene_understanding..."
-exec ros2 launch scene_understanding scene_understanding.launch.py
+echo "[visual_perception:auto_launch] Launching visual_perception bringup..."
+exec ros2 launch visual_perception_bringup visual_perception.launch.py

@@ -87,6 +87,9 @@ services:
       # Configs / helper files
       - ./visual_perception/config:/home/ros/config:rw
 
+      # Reuse custom message packages from central_comm (single source of truth)
+      - ./central_comm/ros2_ws/src/serial_msg:/home/ros/ros2_ws/src/serial_msg:ro
+
   camera_relay:
     user: root
     build:

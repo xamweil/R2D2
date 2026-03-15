@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package format="3">
+  <!-- The package name must match the folder name -->
+  <name>tracking</name>
+
+  <version>0.1.0</version>
+
+  <description>
+    ROS2 node for multi-object tracking based on scene detections and Kalman-filter tracking.
+  </description>
+
+  <maintainer email="max.eberhard@gmx.net">Max</maintainer>
+
+  <license>Apache-2.0</license>
+
+  <!-- Runtime dependencies -->
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>vision_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>serial_msg</depend>
+
+  <!-- Export python only build type-->
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

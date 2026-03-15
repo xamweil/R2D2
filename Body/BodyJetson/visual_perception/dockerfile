@@ -19,6 +19,7 @@ RUN apt-get update --allow-releaseinfo-change && apt-get install -y \
     ros-humble-compressed-image-transport \
     ros-humble-cv-bridge \
     python3-opencv \
+    python3-scipy \
     nano \
     git \
     curl \
