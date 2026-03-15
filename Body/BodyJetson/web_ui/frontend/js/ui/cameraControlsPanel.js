@@ -5,6 +5,8 @@ const CAMERA_INPUT_ROWS = [
 const CAMERA_VISION_TOGGLES = [
   { id: "camera-detections-toggle", label: "Detections", text: "Off" },
   { id: "camera-labels-toggle", label: "Labels", text: "On" },
+  { id: "camera-tracks-toggle", label: "Tracks", text: "Off" },
+  { id: "camera-tracklabels-toggle", label: "Track Labels", text: "On" },
 ];
 
 function renderCameraInputRows() {

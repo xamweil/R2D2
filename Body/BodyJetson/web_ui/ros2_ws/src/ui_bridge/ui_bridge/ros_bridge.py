@@ -240,6 +240,7 @@ def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
         "camera_info",
         "image_raw_compressed",
         "scene_detections",
+        "tracking_tracks",
     }
 
     for alias in PRE_SUBSCRIBE_ALIASES:

@@ -116,7 +116,7 @@ function startCameraStream() {
         console.log("cameraPanel: stream image loaded");
         cameraImage.style.display = "block";
         cameraStatus.style.display = "none";
-        renderDetectionOverlay();
+        renderAllOverlays();
     };
 
     cameraImage.onerror = (event) => {
@@ -182,8 +182,13 @@ async function runCameraTiltCommand(methodName, args = []) {
 }
 
 let latestSceneDetections = null;
+let latestTrackingTracks = null;
+
 let showDetections = false;
 let showLabels = true;
+
+let showTracks = false;
+let showTrackLabels = true;
 
 function getCameraOverlay() {
   return document.getElementById("camera-overlay");
@@ -286,7 +291,7 @@ function clearCameraOverlay() {
   overlay.innerHTML = "";
 }
 
-function renderDetectionBox(det, imageRect) {
+function renderOverlayBox(det, imageRect, options = {}) {
   const overlay = getCameraOverlay();
   if (!overlay) return;
 
@@ -298,7 +303,6 @@ function renderDetectionBox(det, imageRect) {
   const y1 = corners.y1 - PAD_Y;
   const y2 = corners.y2 - PAD_Y;
 
-  // Clip to the real image area inside the letterboxed model space
   const clippedX1 = Math.max(0, Math.min(SOURCE_WIDTH, x1));
   const clippedX2 = Math.max(0, Math.min(SOURCE_WIDTH, x2));
   const clippedY1 = Math.max(0, Math.min(SOURCE_HEIGHT, y1));
@@ -317,48 +321,98 @@ function renderDetectionBox(det, imageRect) {
   }
 
   const box = document.createElement("div");
-  box.className = "camera-detection-box";
+  box.className = options.boxClassName ?? "camera-detection-box";
   box.style.left = `${left}px`;
   box.style.top = `${top}px`;
   box.style.width = `${width}px`;
   box.style.height = `${height}px`;
 
-  if (showLabels) {
+  if (options.showLabel) {
     const label = document.createElement("div");
-    label.className = "camera-detection-label";
+    label.className = options.labelClassName ?? "camera-detection-label";
 
-    const text = getDetectionLabel(det);
-    const score = getDetectionScore(det);
+    const labelText = options.formatLabel ? options.formatLabel(det) : "";
+    label.textContent = labelText;
 
-    if (Number.isFinite(score)) {
-      label.textContent = `${text} ${score.toFixed(2)}`;
-    } else {
-      label.textContent = text;
+    if (labelText) {
+      box.appendChild(label);
     }
-
-    box.appendChild(label);
   }
 
   overlay.appendChild(box);
 }
 
-function renderDetectionOverlay() {
-  clearCameraOverlay();
+function formatDetectionLabel(det) {
+  const text = getDetectionLabel(det);
+  const score = getDetectionScore(det);
 
-  if (!showDetections) return;
-  if (!latestSceneDetections?.data?.detections?.length) return;
+  if (Number.isFinite(score)) {
+    return `${text} ${score.toFixed(2)}`;
+  }
 
-  const imageRect = getDisplayedImageRect();
-  if (!imageRect || imageRect.width <= 0 || imageRect.height <= 0) return;
+  return text;
+}
 
-  for (const det of latestSceneDetections.data.detections) {
-    renderDetectionBox(det, imageRect);
+function formatTrackLabel(det) {
+  const text = getDetectionLabel(det);
+  const trackId = getTrackId(det);
+
+  if (trackId) {
+    return `${text} #${trackId}`;
+  }
+
+  return text;
+}
+
+function renderDetectionCollection(imageRect) {
+  const detections = latestSceneDetections?.data?.detections;
+  if (!showDetections || !detections?.length) {
+    return;
+  }
+
+  for (const det of detections) {
+    renderOverlayBox(det, imageRect, {
+      boxClassName: "camera-detection-box",
+      labelClassName: "camera-detection-label",
+      showLabel: showLabels,
+      formatLabel: formatDetectionLabel,
+    });
   }
 }
 
-function updateDetectionToggleUi() {
+function renderTrackCollection(imageRect) {
+  const tracks = latestTrackingTracks?.data?.detections;
+  if (!showTracks || !tracks?.length) {
+    return;
+  }
+
+  for (const det of tracks) {
+    renderOverlayBox(det, imageRect, {
+      boxClassName: "camera-track-box",
+      labelClassName: "camera-track-label",
+      showLabel: showTrackLabels,
+      formatLabel: formatTrackLabel,
+    });
+  }
+}
+
+function renderAllOverlays() {
+  clearCameraOverlay();
+
+  const imageRect = getDisplayedImageRect();
+  if (!imageRect || imageRect.width <= 0 || imageRect.height <= 0) {
+    return;
+  }
+
+  renderDetectionCollection(imageRect);
+  renderTrackCollection(imageRect);
+}
+
+function updateOverlayToggleUi() {
   const detectionsButton = document.getElementById("camera-detections-toggle");
   const labelsButton = document.getElementById("camera-labels-toggle");
+  const tracksButton = document.getElementById("camera-tracks-toggle");
+  const trackLabelsButton = document.getElementById("camera-tracklabels-toggle");
 
   if (detectionsButton) {
     detectionsButton.textContent = showDetections ? "On" : "Off";
@@ -369,30 +423,67 @@ function updateDetectionToggleUi() {
     labelsButton.textContent = showLabels ? "On" : "Off";
     labelsButton.classList.toggle("is-active", showLabels);
   }
+
+  if (tracksButton) {
+    tracksButton.textContent = showTracks ? "On" : "Off";
+    tracksButton.classList.toggle("is-active", showTracks);
+  }
+
+  if (trackLabelsButton) {
+    trackLabelsButton.textContent = showTrackLabels ? "On" : "Off";
+    trackLabelsButton.classList.toggle("is-active", showTrackLabels);
+  }
 }
 
-function attachDetectionToggleBehavior() {
+function attachOverlayToggleBehavior() {
   const detectionsButton = document.getElementById("camera-detections-toggle");
   const labelsButton = document.getElementById("camera-labels-toggle");
+  const tracksButton = document.getElementById("camera-tracks-toggle");
+  const trackLabelsButton = document.getElementById("camera-tracklabels-toggle");
 
   detectionsButton?.addEventListener("click", () => {
     showDetections = !showDetections;
-    updateDetectionToggleUi();
-    renderDetectionOverlay();
+    updateOverlayToggleUi();
+    renderAllOverlays();
   });
 
   labelsButton?.addEventListener("click", () => {
     showLabels = !showLabels;
-    updateDetectionToggleUi();
-    renderDetectionOverlay();
+    updateOverlayToggleUi();
+    renderAllOverlays();
   });
 
-  updateDetectionToggleUi();
+  tracksButton?.addEventListener("click", () => {
+    showTracks = !showTracks;
+    updateOverlayToggleUi();
+    renderAllOverlays();
+  });
+
+  trackLabelsButton?.addEventListener("click", () => {
+    showTrackLabels = !showTrackLabels;
+    updateOverlayToggleUi();
+    renderAllOverlays();
+  });
+
+  updateOverlayToggleUi();
 }
 
 export function updateSceneDetections(entry) {
   latestSceneDetections = entry;
-  renderDetectionOverlay();
+  renderAllOverlays();
+}
+
+export function updateTrackingTracks(entry) {
+  latestTrackingTracks = entry;
+  renderAllOverlays();
+}
+
+function getTrackId(det) {
+  if (det?.id === null || det?.id === undefined) {
+    return "";
+  }
+
+  return String(det.id);
 }
 
 export function initCameraPanel() {
@@ -427,8 +518,8 @@ export function initCameraPanel() {
     runCameraTiltCommand("low_pos", []);
   });
 
-  attachDetectionToggleBehavior();
-  window.addEventListener("resize", renderDetectionOverlay);
+  attachOverlayToggleBehavior();
+  window.addEventListener("resize", renderAllOverlays);
 
     startCameraStream();
 }

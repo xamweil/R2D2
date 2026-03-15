@@ -25,7 +25,12 @@ ALLOWED_TOPICS: Dict[str, Dict[str, str]] = {
     "scene_detections": {
     "name": "/scene_understanding/detections",
     "type": "vision_msgs/msg/Detection2DArray",
-},
+    },
+
+    "tracking_tracks": {
+    "name": "/tracking/tracks",
+    "type": "vision_msgs/msg/Detection2DArray",
+    },
 }
 
 ALLOWED_SERVICES: Dict[str, Dict[str, str]] = {

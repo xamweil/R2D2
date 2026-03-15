@@ -1,4 +1,4 @@
-import { initCameraPanel, updateSceneDetections } from "./ui/cameraPanel.js";
+import {initCameraPanel, updateSceneDetections, updateTrackingTracks,} from "./ui/cameraPanel.js";
 import { initMpuPanel, renderMpuState } from "./ui/mpuPanel.js";
 import { connectWebSocket } from "./api/websocket.js";
 import { initControlsPanel } from "./ui/controlsPanel.js";
@@ -53,6 +53,10 @@ connectWebSocket({
     const detectionsEntry = payload?.entries?.scene_detections;
     if (detectionsEntry) {
       updateSceneDetections(detectionsEntry);
+  }
+  const tracksEntry = payload?.entries?.tracking_tracks;
+  if (tracksEntry) {
+    updateTrackingTracks(tracksEntry);
   }
   },
   onError(error) {
