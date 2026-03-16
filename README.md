@@ -1,78 +1,161 @@
 
+# R2-D2 Astromech Robot
+
+Custom built R2-D2 with distributed electronics, real-time vision and a ROS2 based control system.
+
+<table>
+  <tr>
+    <td width="38%" align="center" valign="top">
+      <img src="assets/main/HeadTest.gif" width="100%" alt="R2-D2 head movement">
+      <br>
+      <sub>Head movement and dome mechanics</sub>
+    </td>
+    <td width="62%" align="center" valign="top">
+      <img src="assets/main/trackingUI.gif" width="100%" alt="Tracking and control interface">
+      <br>
+      <sub>Live tracking and browser-based control interface</sub>
+    </td>
+  </tr>
+</table>
+
 ---
 
-# R2-D2 Astromech — Work in Progress
+## Overview
 
-> Building a fully functional **R2-D2**: custom electronics in each body part, ROS 2 across devices, and a Jetson “brain” coordinating it all.
+This repository contains the software and firmware for a full-scale R2-D2 build.
+
+The robot is organized as a collection of independent devices distributed across the body.  
+Each device runs its own firmware or ROS nodes and communicates with the rest of the system over a dedicated robot network.
+
+A Jetson acts as the central system for perception, control and user interaction.
+
+---
+
+## Build Progress
 
 <div align="center">
-
-<!-- Replace these placeholders with real photos when ready -->
-
-<img src="assets/main/MainIMG.jpg" alt="R2-D2 build" width="720"/>
-
+  <img src="assets/main/MainIMG.jpg" width="78%" alt="Current robot build">
 </div>
 
-## What’s this project?
-
-A personal build of an **R2-D2 astromech** you can drive and extend: legs with IMUs and stepper control, a ROS 2 head with camera and LEDs, and a Jetson coordinating everything over a private LAN. It’s an evolving project — expect frequent changes and new parts coming online.
-
-## Devices at a glance (current plan)
-
-* **Head (Raspberry Pi 5)** — runs ROS 2 for camera and head features; talks to:
-
-  * **Arduino Uno** (eye/lid mechanics),
-  * **2× Seeeduino XIAO** (LED matrices).
-  * Head ↔ Body link is **wireless** (WLAN) so the head can rotate freely; power goes through a **slip ring**.
-
-* **Legs (Seeed XIAO ESP32-C3)** — one in each leg, streaming **MPU-6500** IMUs (tibia & foot), reading buttons, and driving a stepper. (Left/right use the same firmware with different IP/port.)
-
-* **Main brain (Jetson Orin Nano)** — runs **ROS 2** and bridges to all devices over TCP; republishes sensors and exposes commands.
-
-* **Motor control (Raspberry Pi Pico RP2040)** — will receive **high-level** commands from the Jetson and handle low-level motor control.
-
-> 3D parts: **.stl files** aren’t published yet — happy to share on request.
-
-## Repository layout
-
-Folders follow this convention:
-
-```
-/<BodyPart>/<Device>/<Code or Project>
-```
-
-* **Body parts:** `Head/`, `Body/`, `LeftLeg/`, `RightLeg/`
-* **Device:** what’s embedded there (e.g., `ESP32C3`, `BodyJetson`)
-* **Code/Project:** the firmware or ROS 2 workspace for that device
-
-Examples you’ll see in the repo:
-
-* `Body/BodyJetson/central_comm/…` — Jetson ROS 2 workspace (messages + bridge)
-* `LeftLeg/LeftLegEsp32c3/` — ESP32-C3 firmware for the left leg
-* `RightLeg/RightLegEsp32c3/` — same firmware, different IP/port
-* `Head/` — head-related code and assets
-* `Tests/` — small utilities and experiments ([GitHub][1])
-
-## Quick start (high level)
-
-1. **Flash a leg** (ESP32-C3) with the leg firmware; set the static IP/port.
-2. **Start the Jetson bridge** (ROS 2) to connect to that leg and publish IMU topics.
-3. **Add the head** (Raspberry Pi 5) on WLAN and bring its ROS 2 nodes online.
-4. **Iterate**: more devices, more behaviors, more polish.
-
-(Each subfolder has its own `README.md` with the exact steps.)
-
-## Status
-
-This is **actively under construction**. The goal for now is a tidy structure, consistent device-side firmware, and a minimal ROS 2 pipeline. Expect frequent updates as mechanics, wiring, and software mature.
-
-
-## Contact & contributing
-
-Ideas, feedback, or curiosity about parts/prints? Open an issue or reach out — especially if you’re interested in the .stl files or specific submodules.
+The project combines mechanical construction, embedded electronics and GPU-accelerated computer vision in one system.
 
 ---
 
-*Thanks for stopping by — more photos and progress soon!*
+## What is in the Repository
 
-[1]: https://github.com/xamweil/R2D2 "GitHub - xamweil/R2D2"
+The repository mirrors the physical structure of the robot.
+
+Top-level folders correspond to body parts:
+
+```text
+Body/
+Head/
+LeftLeg/
+RightLeg/
+````
+
+Inside each body part folder, the layout follows the same idea:
+
+```text
+BodyPart/
+    Device/
+        Firmware or ROS workspace
+```
+
+Examples:
+
+```text
+Body/BodyJetson/
+Head/HeadRaspberry/
+LeftLeg/LeftLegEsp32c3/
+RightLeg/RightLegEsp32c3/
+```
+
+This keeps the software aligned with the physical system and makes the project easier to navigate.
+
+---
+
+## System Focus
+
+The Jetson hosts the main ROS2 environment and runs the high-level parts of the robot:
+
+* perception and tracking
+* communication bridges
+* web interface
+* system coordination
+
+The microcontrollers and embedded boards handle the hardware that lives in the individual body parts and must be flashed with their respective firmware.
+
+Detailed setup instructions are located in the README files inside the corresponding folders.
+
+---
+
+## Selected Subsystems
+
+<table>
+  <tr>
+    <td width="52%" valign="middle">
+      <h3>Vision and Control Interface</h3>
+      <p>
+        The Jetson runs a perception pipeline that processes the camera stream in real time and forwards the results to a browser-based control interface.
+        This makes vision and robot control visible in one place and gives the project an immediate systems view.
+      </p>
+    </td>
+    <td width="48%" align="center" valign="middle">
+      <img src="assets/main/trackingUI.gif" width="100%" alt="Tracking user interface">
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="42%" align="center" valign="middle">
+      <img src="assets/head/HeadLids.gif" width="100%" alt="Head lid mechanics">
+    </td>
+    <td width="58%" valign="middle">
+      <h3>Head Mechanics</h3>
+      <p>
+        The dome contains multiple moving elements and custom electronics.
+        This part of the project combines printed parts, actuators and embedded control into one of the most visually distinctive subsystems.
+      </p>
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="58%" valign="middle">
+      <h3>Custom Electronics</h3>
+      <p>
+        Alongside the ROS-based software stack, the project includes several smaller embedded systems for lighting, actuation and device-level control.
+        These modules are developed as dedicated hardware units inside the corresponding body-part folders.
+      </p>
+    </td>
+    <td width="42%" align="center" valign="middle">
+      <img src="assets/head/platinXiao8x8.jpg" width="100%" alt="Embedded electronics module">
+    </td>
+  </tr>
+</table>
+
+---
+
+## Running the Main System
+
+After cloning the repository, the Jetson-side services can be started with Docker:
+
+```bash
+docker compose up
+```
+
+This brings up the main high-level services such as the communication layer, perception stack and web interface.
+
+The embedded boards are flashed separately and documented in their own folders.
+
+---
+
+## Project Status
+
+This is an active long-term build.
+
+The repository is intended to document the architecture and development of the robot while keeping the system modular as new capabilities are added.
+
