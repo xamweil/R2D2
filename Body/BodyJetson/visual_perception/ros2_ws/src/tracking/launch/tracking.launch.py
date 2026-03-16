@@ -15,6 +15,9 @@ def generate_launch_description():
                 "tracks_topic": "/tracking/tracks",
                 "motor_command_topic": "/motor_command",
                 "track_class_ids": [0],
+                "image_topic": "/relay/camera/image_raw",
+                "reid_engine_path": "/home/ros/models/osnet_x0_25/osnet_x0_25.engine",
+                "image_buffer_size": 10,
             }
         ],
     )

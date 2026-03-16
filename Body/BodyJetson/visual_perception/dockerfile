@@ -29,7 +29,14 @@ RUN apt-get update --allow-releaseinfo-change && apt-get install -y \
 RUN pip3 install --no-cache-dir \
     numpy \
     pyyaml \
-    cuda-python==12.6
+    cuda-python==12.6 \
+    huggingface_hub \
+    torchreid \
+    gdown \
+    tensorboard \
+    torchvision \
+    onnx \
+    onnxscript 
 
 # Entrypoint scripts
 COPY docker/ros_entrypoint.sh /usr/local/bin/ros_entrypoint.sh

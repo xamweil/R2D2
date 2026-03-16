@@ -20,6 +20,7 @@
 
 # Personal Data
 secrets.h
+test.jpg
 
 # ===== Visual Perception Models =====
 
@@ -29,6 +30,7 @@ secrets.h
 *.pt
 *.pth
 *.engine
+*.onnx.data
 
 # TensorRT engines
 *.plan

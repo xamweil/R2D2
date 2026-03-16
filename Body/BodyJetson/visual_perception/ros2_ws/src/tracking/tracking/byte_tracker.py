@@ -18,6 +18,8 @@ class Detection:
     h: float
     score: float
     class_id: int
+    embedding: np.ndarray | None = None
+
 
     def bbox_xywh(self) -> tuple[float, float, float, float]:
         return (self.cx, self.cy, self.w, self.h)
@@ -41,17 +43,24 @@ class ByteTracker:
     - create new tracks only from unmatched high-confidence detections
     """
 
-    def __init__(self, track_class_ids: list[int] | None = None, high_thresh: float = 0.6, low_thresh: float = 0.1,
-        iou_thresh: float = 0.3, max_time_since_update: int = 10, ) -> None:
+    def __init__(self, track_class_ids: list[int] | None = None, high_thresh: float = 0.6, low_thresh: float = 0.1, iou_thresh: float = 0.3,
+        max_time_since_update_sec: float = 2.0, min_confirmed_hits: int = 4, max_unconfirmed_age_sec: float = 0.2, min_lost_time_sec: float = 2.0,
+        max_lost_time_sec: float = 15.0, lost_time_tau_sec: float = 30.0) -> None:
         self.kf = KalmanFilter()
 
         self.track_class_ids = set(track_class_ids or [0])
         self.high_thresh = high_thresh
         self.low_thresh = low_thresh
         self.iou_thresh = iou_thresh
-        self.max_time_since_update = max_time_since_update
+        self.max_time_since_update_sec = max_time_since_update_sec
+        self.min_confirmed_hits = min_confirmed_hits
+        self.max_unconfirmed_age_sec = max_unconfirmed_age_sec
+        self.min_lost_time_sec = min_lost_time_sec
+        self.max_lost_time_sec = max_lost_time_sec
+        self.lost_time_tau_sec = lost_time_tau_sec
 
         self.tracks: List[Track] = []
+        self.lost_tracks: List[Track] = []
         self.next_track_id = 1
 
     def set_control_input(self, u_x: float, u_y: float) -> None:
@@ -88,18 +97,47 @@ class ByteTracker:
         for det in unmatched_high_dets:
             self._start_new_track(det)
 
-        # Remove stale tracks
-        self.tracks = [
-            t for t in self.tracks
-            if t.time_since_update <= self.max_time_since_update
+        still_active_tracks: list[Track] = []
+
+        for track in self.tracks:
+            if track.confirmed:
+                if track.time_since_update_sec < 1e-6:
+                    still_active_tracks.append(track)
+                elif track.time_since_update_sec <= self.max_time_since_update_sec:
+                    still_active_tracks.append(track)
+                else:
+                    self.lost_tracks.append(track)
+            else:
+                if self._should_keep_track(track):
+                    still_active_tracks.append(track)
+
+        self.tracks = still_active_tracks
+
+        self.lost_tracks = [
+            t for t in self.lost_tracks
+            if t.time_since_update_sec <= self._lost_timeout_sec(t)
         ]
 
-        # Return only confirmed and recently updated tracks
         active_tracks = [
             t for t in self.tracks
-            if t.confirmed and t.time_since_update == 0
+            if t.confirmed and t.time_since_update_sec < 1e-6
         ]
         return active_tracks
+
+    def _should_keep_track(self, track: Track) -> bool:
+        if track.confirmed:
+            return track.time_since_update_sec <= self.max_time_since_update_sec
+
+        return track.time_since_update_sec <= self.max_unconfirmed_age_sec
+    
+    def _trusted_age_sec(self, track: Track) -> float:
+        return max(0.0, track.total_age_sec - track.time_since_update_sec)
+
+    def _lost_timeout_sec(self, track: Track) -> float:
+        age = self._trusted_age_sec(track)
+        return self.min_lost_time_sec + (
+            self.max_lost_time_sec - self.min_lost_time_sec
+        ) * (1.0 - np.exp(-age / self.lost_time_tau_sec))
 
     def _filter_detections(self, detections: list[Detection]) -> list[Detection]:
         return [d for d in detections if d.class_id in self.track_class_ids and d.score >= self.low_thresh]
@@ -142,6 +180,9 @@ class ByteTracker:
                 det.h,
                 det.score,
             )
+
+            if track.hits >= self.min_confirmed_hits:
+                track.confirmed = True
 
             matched_track_indices.add(r)
             matched_det_indices.add(c)
