@@ -34,10 +34,7 @@ class WebUiBridge(Node):
 
     def _update_state(self, alias: str, msg: Any) -> None:
         t = now_s()
-        self._state[alias] = {
-            "t": t,
-            "data": to_jsonable(msg),
-        }
+        self._state[alias] = {"t": t, "msg": msg}
 
     def _fill_msg_fields(self, msg: Any, values: Dict[str, Any]) -> None:
         """
@@ -143,7 +140,7 @@ class WebUiBridge(Node):
 
         # remove subscription if present
         if self._cam_sub_alias in self._subs:
-            sub, _typ = self._subs.pop(self._cam_sub_alias)
+            sub, _ = self._subs.pop(self._cam_sub_alias)
             try:
                 self.destroy_subscription(sub)
             except Exception:
@@ -159,13 +156,14 @@ class WebUiBridge(Node):
     def unsubscribe_alias(self, alias: str) -> None:
         if alias not in self._subs:
             return
-        sub, _typ = self._subs.pop(alias)
+        sub, _ = self._subs.pop(alias)
         try:
             self.destroy_subscription(sub)
         except Exception:
             pass
         self.get_logger().info(f"Unsubscribed alias='{alias}'")
 
+    # TODO: make this async(?), handle errors
     def call_service(
         self,
         service_name: str,
@@ -223,7 +221,7 @@ class WebUiBridge(Node):
                     "stale": age > STALE_SEC,
                     "age": age,
                     "t": entry["t"],
-                    "data": entry["data"],
+                    "data": to_jsonable(entry["msg"]),
                 }
 
         # Include dev-added subs too
@@ -236,7 +234,7 @@ class WebUiBridge(Node):
                 "stale": age > STALE_SEC,
                 "age": age,
                 "t": entry["t"],
-                "data": entry["data"],
+                "data": to_jsonable(entry["msg"]),
             }
 
         return out
@@ -337,4 +335,3 @@ def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
     finally:
         node.destroy_node()
         rclpy.shutdown()
-
