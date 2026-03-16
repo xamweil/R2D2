@@ -14,6 +14,12 @@ from .config import DEV_UNSAFE, STATE_PERIOD, STATE_HZ, STALE_SEC, ALLOWED_TOPIC
 from .ros_types import RosCmd
 
 
+async def _get_reply(reply_q: "queue.Queue", timeout: float = 1.0):
+    """Get from a threading Queue without blocking the async event loop."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, lambda: reply_q.get(timeout=timeout))
+
+
 class AllowedCall(BaseModel):
     alias: str
     request: Dict[str, Any] = {}
@@ -95,7 +101,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
         )
 
         try:
-            result = reply_q.get(timeout=2.0)
+            result = await _get_reply(reply_q, 2.0)
         except queue.Empty:
             raise HTTPException(status_code=504, detail="Publish request timed out")
 
@@ -116,7 +122,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
         # start camera subscription
         start_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
         ros_cmd_q.put(RosCmd(kind="camera_start", data={}, reply_q=start_q))
-        _ = start_q.get(timeout=2.0)
+        await _get_reply(start_q, 2.0)
 
         boundary = "frame"
 
@@ -134,7 +140,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                 continue
 
             try:
-                res = reply_q.get(timeout=1.0)
+                res = await _get_reply(reply_q, 1.0)
             except queue.Empty:
                 continue
 
@@ -149,7 +155,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
             stop_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
             ros_cmd_q.put(RosCmd(kind="camera_stop", data={}, reply_q=stop_q))
             try:
-                stop_q.get(timeout=2.0)
+                await _get_reply(stop_q, 2.0)
             except queue.Empty:
                 pass
 
@@ -180,7 +186,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                         continue
 
                     try:
-                        res = reply_q.get(timeout=1.0)
+                        res = await _get_reply(reply_q, 1.0)
                     except queue.Empty:
                         continue
 
@@ -202,7 +208,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                 stop_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
                 ros_cmd_q.put(RosCmd(kind="camera_stop", data={}, reply_q=stop_q))
                 try:
-                    stop_q.get(timeout=2.0)
+                    await _get_reply(stop_q, 2.0)
                 except queue.Empty:
                     pass
 
@@ -249,6 +255,11 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
         while True:
             await asyncio.sleep(STATE_PERIOD)
 
+            # Skip snapshot when no WebSocket clients are connected
+            async with ws_lock:
+                if not ws_clients:
+                    continue
+
             reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
             try:
                 ros_cmd_q.put_nowait(RosCmd(kind="snapshot", data={}, reply_q=reply_q))
@@ -256,7 +267,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                 continue
 
             try:
-                resp = reply_q.get(timeout=1.0)
+                resp = await _get_reply(reply_q, 1.0)
             except queue.Empty:
                 continue
 
@@ -323,7 +334,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                         reply_q=reply_q
                     ))
                     try:
-                        resp = reply_q.get(timeout=timeout_sec + 1.0)
+                        resp = await _get_reply(reply_q, timeout_sec + 1.0)
                     except queue.Empty:
                         resp = {"ok": False, "error": "timeout_waiting_for_ros"}
                     await ws.send_json({"type": "call_result", "payload": resp})
@@ -345,7 +356,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                         reply_q=reply_q
                     ))
                     try:
-                        resp = reply_q.get(timeout=timeout_sec + 1.0)
+                        resp = await _get_reply(reply_q, timeout_sec + 1.0)
                     except queue.Empty:
                         resp = {"ok": False, "error": "timeout_waiting_for_ros"}
                     await ws.send_json({"type": "call_result", "payload": resp})
@@ -366,7 +377,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                     reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
                     ros_cmd_q.put(RosCmd(kind="subscribe", data={"alias": alias, "topic": topic, "type": typ}, reply_q=reply_q))
                     try:
-                        resp = reply_q.get(timeout=2.0)
+                        resp = await _get_reply(reply_q, 2.0)
                     except queue.Empty:
                         resp = {"ok": False, "error": "timeout_waiting_for_ros"}
                     await ws.send_json({"type": "subscribe_result", "payload": resp})
@@ -376,7 +387,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                     reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
                     ros_cmd_q.put(RosCmd(kind="unsubscribe", data={"alias": alias}, reply_q=reply_q))
                     try:
-                        resp = reply_q.get(timeout=2.0)
+                        resp = await _get_reply(reply_q, 2.0)
                     except queue.Empty:
                         resp = {"ok": False, "error": "timeout_waiting_for_ros"}
                     await ws.send_json({"type": "unsubscribe_result", "payload": resp})
