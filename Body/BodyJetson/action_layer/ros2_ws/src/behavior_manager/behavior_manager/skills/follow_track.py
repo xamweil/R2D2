@@ -80,7 +80,7 @@ class FollowTrackSkill(BehaviorBase):
                     "error_x": 0.0,
                     "error_y": 0.0,
                 },
-                "done": False,
+                "done": True,
                 "success": False,
                 "message": "target not visible",
             }
@@ -96,7 +96,7 @@ class FollowTrackSkill(BehaviorBase):
                     "error_x": 0.0,
                     "error_y": 0.0,
                 },
-                "done": False,
+                "done": True,
                 "success": False,
                 "message": "could not extract bbox center x",
             }

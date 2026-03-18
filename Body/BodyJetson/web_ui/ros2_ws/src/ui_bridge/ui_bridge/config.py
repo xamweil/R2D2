@@ -41,6 +41,13 @@ ALLOWED_PUBLISH_TOPICS: Dict[str, Dict[str, str]] = {
     "motor_command": {"name": "/motor_command", "type": "serial_msg/msg/MotorCommand"},
 }
 
+ALLOWED_ACTIONS: Dict[str, Dict[str, str]] = {
+    "follow_track": {
+        "name": "/follow_track",
+        "type": "behavior_msgs/action/FollowTrack",
+    },
+}
+
 CAMERA_ALIAS = "image_raw_compressed"
 CAMERA_FPS = float(os.environ.get("CAMERA_FPS", "3"))  # low fps
 CAMERA_PERIOD = 1.0 / max(CAMERA_FPS, 0.5)

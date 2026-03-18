@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
 import os
 
-from .config import DEV_UNSAFE, STATE_PERIOD, STATE_HZ, STALE_SEC, ALLOWED_TOPICS, ALLOWED_SERVICES, NODE_NAME, CAMERA_PERIOD, ALLOWED_PUBLISH_TOPICS
+from .config import DEV_UNSAFE, STATE_PERIOD, STATE_HZ, STALE_SEC, ALLOWED_TOPICS, ALLOWED_SERVICES, NODE_NAME, CAMERA_PERIOD, ALLOWED_PUBLISH_TOPICS, ALLOWED_ACTIONS
 from .ros_types import RosCmd
 
 
@@ -109,6 +109,71 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
             raise HTTPException(status_code=500, detail=result.get("error", "Publish failed"))
 
         return {"ok": True}
+
+    @app.post("/action/start")
+    async def action_start(payload: Dict[str, Any]):
+        alias = payload.get("alias")
+        goal = payload.get("goal")
+
+        if alias not in ALLOWED_ACTIONS:
+            raise HTTPException(status_code=400, detail=f"Unknown action alias: {alias}")
+
+        if not isinstance(goal, dict):
+            raise HTTPException(status_code=400, detail="Field 'goal' must be an object")
+
+        info = ALLOWED_ACTIONS[alias]
+
+        reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
+        ros_cmd_q.put(
+            RosCmd(
+                kind="send_action_goal",
+                data={
+                    "alias": alias,
+                    "action": info["name"],
+                    "type": info["type"],
+                    "goal": goal,
+                },
+                reply_q=reply_q,
+            )
+        )
+
+        try:
+            result = reply_q.get(timeout=2.0)
+        except queue.Empty:
+            raise HTTPException(status_code=504, detail="Action start timed out")
+
+        if not result.get("ok"):
+            raise HTTPException(status_code=500, detail=result.get("error", "Action start failed"))
+
+        return result
+
+    @app.post("/action/cancel")
+    async def action_cancel(payload: Dict[str, Any]):
+        alias = payload.get("alias")
+
+        if alias not in ALLOWED_ACTIONS:
+            raise HTTPException(status_code=400, detail=f"Unknown action alias: {alias}")
+
+        reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
+        ros_cmd_q.put(
+            RosCmd(
+                kind="cancel_action_goal",
+                data={
+                    "alias": alias,
+                },
+                reply_q=reply_q,
+            )
+        )
+
+        try:
+            result = reply_q.get(timeout=2.0)
+        except queue.Empty:
+            raise HTTPException(status_code=504, detail="Action cancel timed out")
+
+        if not result.get("ok"):
+            raise HTTPException(status_code=500, detail=result.get("error", "Action cancel failed"))
+
+        return result
 
     @app.get("/mjpeg")
     async def mjpeg():

@@ -7,9 +7,10 @@ from typing import Any, Dict, Optional, Tuple
 import rclpy
 from rclpy.node import Node
 from rclpy.task import Future
+from rclpy.action import ActionClient
 
 from .config import ALLOWED_PUBLISH_TOPICS, ALLOWED_TOPICS, NODE_NAME, STALE_SEC
-from .ros_introspection import import_msg_class, import_srv_class
+from .ros_introspection import import_msg_class, import_srv_class, import_action_class
 from .ros_types import RosCmd
 from .serialize import to_jsonable
 
@@ -24,6 +25,9 @@ class WebUiBridge(Node):
         self._subs: Dict[str, Tuple[Any, str]] = {}
         self._state: Dict[str, Dict[str, Any]] = {}
         self._pubs: Dict[str, Tuple[Any, str]] = {}
+
+        self._actions: Dict[str, Any] = {}
+        self._active_action_goals: Dict[str, Any] = {}
 
         # MJPEG latest frame store
         self._cam_lock = threading.Lock()
@@ -93,6 +97,54 @@ class WebUiBridge(Node):
         msg = msg_cls()
         self._fill_msg_fields(msg, msg_dict)
         pub.publish(msg)
+
+    def send_action_goal(self, alias: str, action_name: str, action_type_str: str,
+        goal_dict: Dict[str, Any], timeout_sec: float = 2.0):
+
+        if alias not in self._actions:
+            action_cls = import_action_class(action_type_str)
+            client = ActionClient(self, action_cls, action_name)
+            self._actions[alias] = (client, action_type_str)
+        else:
+            client, _ = self._actions[alias]
+            action_cls = import_action_class(action_type_str)
+
+        if not client.wait_for_server(timeout_sec=timeout_sec):
+            raise RuntimeError(f"Action server not available: {action_name}")
+
+        goal_msg = action_cls.Goal()
+        self._fill_msg_fields(goal_msg, goal_dict)
+
+        send_future = client.send_goal_async(goal_msg)
+
+        start = now_s()
+        while rclpy.ok() and not send_future.done():
+            rclpy.spin_once(self, timeout_sec=0.05)
+            if now_s() - start > timeout_sec:
+                raise TimeoutError(f"Action goal send timed out: {action_name}")
+
+        goal_handle = send_future.result()
+        if goal_handle is None or not goal_handle.accepted:
+            raise RuntimeError(f"Action goal rejected: {action_name}")
+
+        self._active_action_goals[alias] = goal_handle
+        return {"accepted": True}
+
+    def cancel_action_goal(self, alias: str, timeout_sec: float = 2.0):
+        goal_handle = self._active_action_goals.get(alias)
+        if goal_handle is None:
+            return {"ok": True, "message": "no_active_goal"}
+
+        cancel_future = goal_handle.cancel_goal_async()
+
+        start = now_s()
+        while rclpy.ok() and not cancel_future.done():
+            rclpy.spin_once(self, timeout_sec=0.05)
+            if now_s() - start > timeout_sec:
+                raise TimeoutError(f"Cancel action goal timed out for alias: {alias}")
+
+        self._active_action_goals.pop(alias, None)
+        return {"ok": True}
 
     def subscribe_alias(self, alias: str, topic_name: str, msg_type_str: str) -> None:
         if alias in self._subs:
@@ -323,6 +375,29 @@ def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
 
                     node.publish_alias(alias, topic, msg_type, msg)
                     cmd.reply_q.put({"ok": True})
+
+                elif cmd.kind == "send_action_goal":
+                    alias = cmd.data["alias"]
+                    action_name = cmd.data["action"]
+                    action_type = cmd.data["type"]
+                    goal = cmd.data["goal"]
+                    timeout_sec = float(cmd.data.get("timeout_sec", 2.0))
+
+                    result = node.send_action_goal(
+                        alias,
+                        action_name,
+                        action_type,
+                        goal,
+                        timeout_sec=timeout_sec,
+                    )
+                    cmd.reply_q.put({"ok": True, "result": result})
+
+                elif cmd.kind == "cancel_action_goal":
+                    alias = cmd.data["alias"]
+                    timeout_sec = float(cmd.data.get("timeout_sec", 2.0))
+
+                    result = node.cancel_action_goal(alias, timeout_sec=timeout_sec)
+                    cmd.reply_q.put({"ok": True, "result": result})
 
                 else:
                     cmd.reply_q.put(

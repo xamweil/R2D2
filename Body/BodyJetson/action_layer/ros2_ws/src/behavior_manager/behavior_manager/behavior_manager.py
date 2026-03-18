@@ -20,6 +20,7 @@ class BehaviorManager:
     def __init__(self) -> None:
         self._skills: Dict[str, BehaviorBase] = {}
         self._active_skills: Dict[str, BehaviorBase] = {}
+        self._last_terminal_output: Dict[str, Dict[str, Any]] = {}
 
     # ---------------------------------------------------------------------
     # Registration
@@ -93,6 +94,8 @@ class BehaviorManager:
     # ---------------------------------------------------------------------
     # Periodic update
     # ---------------------------------------------------------------------
+    def pop_terminal_output(self, skill_name: str) -> Optional[Dict[str, Any]]:
+        return self._last_terminal_output.pop(skill_name, None)
 
     def update(self, inputs: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -113,6 +116,7 @@ class BehaviorManager:
             outputs.append(output)
 
             if bool(output.get("done", False)):
+                self._last_terminal_output[skill_name] = output
                 skills_to_stop.append(skill_name)
 
         for skill_name in skills_to_stop:

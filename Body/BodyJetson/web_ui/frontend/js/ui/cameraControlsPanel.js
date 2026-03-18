@@ -9,6 +9,60 @@ const CAMERA_VISION_TOGGLES = [
   { id: "camera-tracklabels-toggle", label: "Track Labels", text: "On" },
 ];
 
+const CAMERA_BEHAVIOR_CONTROLS = [
+  {
+    selectId: "camera-follow-track-select",
+    buttonId: "camera-follow-track-button",
+    label: "Follow Track",
+    buttonText: "Start Follow",
+  },
+];
+
+function renderCameraBehaviorControls() {
+  const container = document.getElementById("camera-vision-controls");
+  if (!container) {
+    console.error("cameraControlsPanel: vision container missing");
+    return;
+  }
+
+  for (const control of CAMERA_BEHAVIOR_CONTROLS) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "camera-behavior-row";
+
+    const label = document.createElement("label");
+    label.className = "camera-vision-label";
+    label.setAttribute("for", control.selectId);
+    label.textContent = control.label;
+
+    const actions = document.createElement("div");
+    actions.className = "camera-behavior-actions";
+
+    const select = document.createElement("select");
+    select.id = control.selectId;
+    select.className = "camera-track-select";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.id = control.buttonId;
+    button.className = "camera-follow-button";
+    button.textContent = control.buttonText;
+
+    actions.appendChild(select);
+    actions.appendChild(button);
+
+    wrapper.appendChild(label);
+    wrapper.appendChild(actions);
+
+    container.appendChild(wrapper);
+  }
+
+  const status = document.createElement("p");
+  status.id = "camera-follow-track-status";
+  status.className = "camera-follow-track-status";
+  status.textContent = "Follow behavior idle";
+  container.appendChild(status);
+}
+
 function renderCameraInputRows() {
   const container = document.getElementById("camera-tilt-inputs");
   const template = document.getElementById("camera-control-row-template");
@@ -77,4 +131,5 @@ export function initCameraControlsPanel() {
 
   renderCameraInputRows();
   renderCameraVisionToggles();
+  renderCameraBehaviorControls();
 }

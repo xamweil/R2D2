@@ -206,9 +206,21 @@ class BehaviorManagerNode(Node):
                     return result
 
                 if not self._manager.has_active_skill("follow_track"):
+                    terminal_output = self._manager.pop_terminal_output("follow_track")
+
+                    if terminal_output is not None and not bool(terminal_output.get("success", False)):
+                        goal_handle.abort()
+                        result.success = False
+                        result.message = str(terminal_output.get("message", "FollowTrack failed"))
+                        return result
+
                     goal_handle.succeed()
                     result.success = True
-                    result.message = "FollowTrack completed"
+                    result.message = (
+                        str(terminal_output.get("message", "FollowTrack completed"))
+                        if terminal_output is not None
+                        else "FollowTrack completed"
+                    )
                     return result
 
                 time.sleep(0.1)

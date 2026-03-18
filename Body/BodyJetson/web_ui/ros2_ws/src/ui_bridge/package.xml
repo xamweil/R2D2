@@ -20,6 +20,7 @@
   <!-- Custom interfaces -->
   <exec_depend>tcp_msg</exec_depend>
   <exec_depend>serial_msg</exec_depend>
+  <exec_depend>behavior_msgs</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

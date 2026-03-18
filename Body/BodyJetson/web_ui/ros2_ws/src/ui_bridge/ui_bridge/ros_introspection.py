@@ -25,3 +25,9 @@ def import_srv_class(type_str: str):
         return getattr(mod, name)
     except Exception as e:
         raise ValueError(f"Failed to import service type '{type_str}': {e}") from e
+
+def import_action_class(type_str: str):
+    pkg, iface = type_str.split("/", 1)
+    submodule, cls_name = iface.split("/", 1)   # action/FollowTrack
+    module = __import__(f"{pkg}.{submodule}", fromlist=[cls_name])
+    return getattr(module, cls_name)

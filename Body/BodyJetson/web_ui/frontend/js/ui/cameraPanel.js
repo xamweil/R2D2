@@ -1,4 +1,5 @@
 import { callDeviceCommand } from "../api/deviceService.js";
+import { startFollowTrack, cancelFollowTrack } from "../api/followTrackService.js";
 
 const MODEL_WIDTH = 640;
 const MODEL_HEIGHT = 640;
@@ -189,6 +190,128 @@ let showLabels = true;
 
 let showTracks = false;
 let showTrackLabels = true;
+
+let isFollowTrackActive = false;
+let currentFollowTrackId = null;
+
+function getVisibleTrackIds() {
+  const tracks = latestTrackingTracks?.data?.detections;
+  if (!tracks?.length) {
+    return [];
+  }
+
+  const ids = tracks
+    .map((det) => getTrackId(det))
+    .filter((id) => id !== "");
+
+  ids.sort((a, b) => Number(a) - Number(b));
+  return ids;
+}
+
+function getFollowTrackSelect() {
+  return document.getElementById("camera-follow-track-select");
+}
+
+function getFollowTrackButton() {
+  return document.getElementById("camera-follow-track-button");
+}
+
+function setFollowTrackStatus(text) {
+  const status = document.getElementById("camera-follow-track-status");
+  if (!status) return;
+  status.textContent = text;
+}
+
+function syncFollowTrackSelectOptions() {
+  const select = getFollowTrackSelect();
+  if (!select) return;
+
+  const visibleIds = getVisibleTrackIds();
+  const previousValue = select.value;
+
+  select.innerHTML = "";
+
+  if (!visibleIds.length) {
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No visible tracks";
+    select.appendChild(option);
+    select.disabled = true;
+    currentFollowTrackId = null;
+    return;
+  }
+
+  select.disabled = false;
+
+  for (const id of visibleIds) {
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = `Track #${id}`;
+    select.appendChild(option);
+  }
+
+  if (visibleIds.includes(previousValue)) {
+    select.value = previousValue;
+  } else {
+    select.value = visibleIds[0];
+  }
+
+  currentFollowTrackId = select.value;
+}
+
+function updateFollowTrackUi() {
+  const button = getFollowTrackButton();
+  const select = getFollowTrackSelect();
+
+  if (button) {
+    button.textContent = isFollowTrackActive ? "Stop Follow" : "Start Follow";
+    button.classList.toggle("is-active", isFollowTrackActive);
+  }
+
+  if (select) {
+    select.disabled = isFollowTrackActive || !getVisibleTrackIds().length;
+  }
+}
+
+async function runFollowTrackToggle() {
+  if (isFollowTrackActive) {
+    setFollowTrackStatus("Stopping follow behavior...");
+
+    const result = await cancelFollowTrack();
+    if (!result.ok) {
+      setFollowTrackStatus(`Stop failed: ${result.error}`);
+      console.error("follow cancel failed", result);
+      return;
+    }
+
+    isFollowTrackActive = false;
+    setFollowTrackStatus("Follow behavior idle");
+    updateFollowTrackUi();
+    return;
+  }
+
+  const select = getFollowTrackSelect();
+  const trackId = select?.value;
+
+  if (!trackId) {
+    setFollowTrackStatus("No visible track selected");
+    return;
+  }
+
+  setFollowTrackStatus(`Starting follow for track #${trackId}...`);
+
+  const result = await startFollowTrack(trackId);
+  if (!result.ok) {
+    setFollowTrackStatus(`Start failed: ${result.error}`);
+    console.error("follow start failed", result);
+    return;
+  }
+
+  isFollowTrackActive = true;
+  currentFollowTrackId = trackId;
+  setFollowTrackStatus(`Following track #${trackId}`);
+  updateFollowTrackUi();
+}
 
 function getCameraOverlay() {
   return document.getElementById("camera-overlay");
@@ -468,6 +591,22 @@ function attachOverlayToggleBehavior() {
   updateOverlayToggleUi();
 }
 
+function attachFollowTrackBehavior() {
+  const select = getFollowTrackSelect();
+  const button = getFollowTrackButton();
+
+  select?.addEventListener("change", () => {
+    currentFollowTrackId = select.value || null;
+  });
+
+  button?.addEventListener("click", () => {
+    runFollowTrackToggle();
+  });
+
+  syncFollowTrackSelectOptions();
+  updateFollowTrackUi();
+}
+
 export function updateSceneDetections(entry) {
   latestSceneDetections = entry;
   renderAllOverlays();
@@ -475,6 +614,18 @@ export function updateSceneDetections(entry) {
 
 export function updateTrackingTracks(entry) {
   latestTrackingTracks = entry;
+  syncFollowTrackSelectOptions();
+
+  if (isFollowTrackActive) {
+    const visibleIds = getVisibleTrackIds();
+    if (!currentFollowTrackId || !visibleIds.includes(String(currentFollowTrackId))) {
+      isFollowTrackActive = false;
+      currentFollowTrackId = null;
+      setFollowTrackStatus("Tracked target vanished");
+    }
+  }
+
+  updateFollowTrackUi();
   renderAllOverlays();
 }
 
@@ -519,6 +670,7 @@ export function initCameraPanel() {
   });
 
   attachOverlayToggleBehavior();
+  attachFollowTrackBehavior();
   window.addEventListener("resize", renderAllOverlays);
 
     startCameraStream();

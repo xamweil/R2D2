@@ -194,6 +194,10 @@
     width: 100%;
   }
 
+  .camera-behavior-actions {
+  flex-direction: column;
+  }
+
 }
 
 #camera-overlay {
@@ -287,6 +291,51 @@
 .camera-vision-toggle-button.is-active {
   background-color: #2a5ea8;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.camera-behavior-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.camera-behavior-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.camera-track-select {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid rgba(142, 180, 255, 0.85);
+  border-radius: 10px;
+  background-color: #14253a;
+  color: #ffffff;
+}
+
+.camera-follow-button {
+  min-width: 140px;
+  padding: 10px 12px;
+  border: 1px solid #8eb4ff;
+  border-radius: 10px;
+  background-color: #14253a;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.camera-follow-button:hover {
+  background-color: #1b304d;
+}
+
+.camera-follow-button.is-active {
+  background-color: #2a5ea8;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.camera-follow-track-status {
+  margin: 10px 0 0 0;
+  color: #cfcfcf;
 }
 
 /*MPU grid*/
