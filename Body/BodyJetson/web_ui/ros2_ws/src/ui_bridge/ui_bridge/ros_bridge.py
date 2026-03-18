@@ -1,20 +1,22 @@
 # ui_bridge/ros_bridge.py
-import time
 import queue
+import threading
+import time
 from typing import Any, Dict, Optional, Tuple
-import threading 
 
 import rclpy
 from rclpy.node import Node
 from rclpy.task import Future
 
-from .config import NODE_NAME, ALLOWED_TOPICS, STALE_SEC, ALLOWED_PUBLISH_TOPICS
+from .config import ALLOWED_PUBLISH_TOPICS, ALLOWED_TOPICS, NODE_NAME, STALE_SEC
 from .ros_introspection import import_msg_class, import_srv_class
-from .serialize import to_jsonable
 from .ros_types import RosCmd
+from .serialize import to_jsonable
+
 
 def now_s() -> float:
     return time.time()
+
 
 class WebUiBridge(Node):
     def __init__(self) -> None:
@@ -27,21 +29,19 @@ class WebUiBridge(Node):
         self._cam_lock = threading.Lock()
         self._cam_jpeg: Optional[bytes] = None
         self._cam_ts: float = 0.0
-        self._cam_sub_alias = "camera_mjpeg"   # internal alias for the subscription
+        self._cam_sub_alias = "camera_mjpeg"  # internal alias for the subscription
         self._cam_refcount = 0
 
     def _update_state(self, alias: str, msg: Any) -> None:
         t = now_s()
-        self._state[alias] = {
-            "t": t,
-            "data": to_jsonable(msg),
-        }
+        self._state[alias] = {"t": t, "msg": msg}
 
     def _fill_msg_fields(self, msg: Any, values: Dict[str, Any]) -> None:
         """
         Fill ROS message fields from a plain dict, with explicit coercion for
         serial_msg/msg/MotorCommand field types.
         """
+
         def as_bool_list(v):
             if not isinstance(v, (list, tuple)):
                 raise ValueError("expected a list")
@@ -79,7 +79,9 @@ class WebUiBridge(Node):
 
             setattr(msg, key, coerced)
 
-    def publish_alias(self, alias: str, topic_name: str, msg_type_str: str, msg_dict: Dict[str, Any]) -> None:
+    def publish_alias(
+        self, alias: str, topic_name: str, msg_type_str: str, msg_dict: Dict[str, Any]
+    ) -> None:
         if alias not in self._pubs:
             msg_cls = import_msg_class(msg_type_str)
             pub = self.create_publisher(msg_cls, topic_name, 10)
@@ -92,19 +94,18 @@ class WebUiBridge(Node):
         self._fill_msg_fields(msg, msg_dict)
         pub.publish(msg)
 
-
     def subscribe_alias(self, alias: str, topic_name: str, msg_type_str: str) -> None:
         if alias in self._subs:
             return
         msg_cls = import_msg_class(msg_type_str)
         sub = self.create_subscription(
-            msg_cls, topic_name,
-            lambda m, a=alias: self._update_state(a, m),
-            10
+            msg_cls, topic_name, lambda m, a=alias: self._update_state(a, m), 10
         )
         self._subs[alias] = (sub, msg_type_str)
-        self.get_logger().info(f"Subscribed alias='{alias}' -> {topic_name} [{msg_type_str}]")
-    
+        self.get_logger().info(
+            f"Subscribed alias='{alias}' -> {topic_name} [{msg_type_str}]"
+        )
+
     def _cam_cb(self, msg: Any) -> None:
         # msg is sensor_msgs/msg/CompressedImage
         # It already contains JPEG bytes in msg.data for format "jpeg"
@@ -139,7 +140,7 @@ class WebUiBridge(Node):
 
         # remove subscription if present
         if self._cam_sub_alias in self._subs:
-            sub, _typ = self._subs.pop(self._cam_sub_alias)
+            sub, _ = self._subs.pop(self._cam_sub_alias)
             try:
                 self.destroy_subscription(sub)
             except Exception:
@@ -155,14 +156,21 @@ class WebUiBridge(Node):
     def unsubscribe_alias(self, alias: str) -> None:
         if alias not in self._subs:
             return
-        sub, _typ = self._subs.pop(alias)
+        sub, _ = self._subs.pop(alias)
         try:
             self.destroy_subscription(sub)
         except Exception:
             pass
         self.get_logger().info(f"Unsubscribed alias='{alias}'")
 
-    def call_service(self, service_name: str, srv_type_str: str, request_dict: Dict[str, Any], timeout_sec: float):
+    # TODO: make this async(?), handle errors
+    def call_service(
+        self,
+        service_name: str,
+        srv_type_str: str,
+        request_dict: Dict[str, Any],
+        timeout_sec: float,
+    ):
         srv_cls = import_srv_class(srv_type_str)
         client = self.create_client(srv_cls, service_name)
 
@@ -179,7 +187,7 @@ class WebUiBridge(Node):
 
         start = now_s()
         while rclpy.ok() and not fut.done():
-            rclpy.spin_once(self, timeout_sec=0.05)
+            rclpy.spin_once(self, timeout_sec=0.1)
             if now_s() - start > timeout_sec:
                 raise TimeoutError(f"Service call timed out: {service_name}")
 
@@ -200,7 +208,12 @@ class WebUiBridge(Node):
         for alias in ALLOWED_TOPICS.keys():
             entry = self._state.get(alias)
             if entry is None:
-                out["entries"][alias] = {"present": False, "stale": True, "t": None, "data": None}
+                out["entries"][alias] = {
+                    "present": False,
+                    "stale": True,
+                    "t": None,
+                    "data": None,
+                }
             else:
                 age = t_now - float(entry["t"])
                 out["entries"][alias] = {
@@ -208,7 +221,7 @@ class WebUiBridge(Node):
                     "stale": age > STALE_SEC,
                     "age": age,
                     "t": entry["t"],
-                    "data": entry["data"],
+                    "data": to_jsonable(entry["msg"]),
                 }
 
         # Include dev-added subs too
@@ -217,12 +230,12 @@ class WebUiBridge(Node):
                 continue
             age = t_now - float(entry["t"])
             out["entries"][alias] = {
-                    "present": True,
-                    "stale": age > STALE_SEC,
-                    "age": age,
-                    "t": entry["t"],
-                    "data": entry["data"],
-                }
+                "present": True,
+                "stale": age > STALE_SEC,
+                "age": age,
+                "t": entry["t"],
+                "data": to_jsonable(entry["msg"]),
+            }
 
         return out
 
@@ -257,13 +270,15 @@ def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
             rclpy.spin_once(node, timeout_sec=0.05)
 
             try:
-                cmd = ros_cmd_q.get_nowait()
+                cmd = ros_cmd_q.get(timeout=0.05)
             except queue.Empty:
                 continue
 
             try:
                 if cmd.kind == "subscribe":
-                    node.subscribe_alias(cmd.data["alias"], cmd.data["topic"], cmd.data["type"])
+                    node.subscribe_alias(
+                        cmd.data["alias"], cmd.data["topic"], cmd.data["type"]
+                    )
                     cmd.reply_q.put({"ok": True})
 
                 elif cmd.kind == "unsubscribe":
@@ -281,7 +296,7 @@ def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
 
                 elif cmd.kind == "snapshot":
                     cmd.reply_q.put({"ok": True, "state": node.snapshot_state()})
-                
+
                 elif cmd.kind == "camera_start":
                     node.camera_start()
                     cmd.reply_q.put({"ok": True})
@@ -296,7 +311,9 @@ def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
                     if not res["ok"]:
                         cmd.reply_q.put(res)
                     else:
-                        cmd.reply_q.put({"ok": True, "jpeg": res["jpeg"], "t": res["t"]})
+                        cmd.reply_q.put(
+                            {"ok": True, "jpeg": res["jpeg"], "t": res["t"]}
+                        )
 
                 elif cmd.kind == "publish":
                     alias = cmd.data["alias"]
@@ -308,7 +325,9 @@ def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
                     cmd.reply_q.put({"ok": True})
 
                 else:
-                    cmd.reply_q.put({"ok": False, "error": f"unknown_cmd_kind:{cmd.kind}"})
+                    cmd.reply_q.put(
+                        {"ok": False, "error": f"unknown_cmd_kind:{cmd.kind}"}
+                    )
 
             except Exception as e:
                 cmd.reply_q.put({"ok": False, "error": str(e)})
