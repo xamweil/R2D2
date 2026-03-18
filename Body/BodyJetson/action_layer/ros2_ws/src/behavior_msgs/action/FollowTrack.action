@@ -1,0 +1,9 @@
+int32 track_id
+---
+bool success
+string message
+---
+bool target_visible
+int32 current_track_id
+float32 error_x
+float32 error_y
