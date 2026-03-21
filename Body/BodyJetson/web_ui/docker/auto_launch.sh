@@ -33,5 +33,9 @@ source /home/ros/ros2_ws/install/setup.bash
 export UI_BRIDGE_HOST="${UI_BRIDGE_HOST:-0.0.0.0}"
 export UI_BRIDGE_PORT="${UI_BRIDGE_PORT:-8000}"
 
-echo "[web_ui:auto_launch] Launching API node on ${UI_BRIDGE_HOST}:${UI_BRIDGE_PORT}…"
-exec ros2 run ui_bridge api_node
+# echo "[web_ui:auto_launch] Launching API node on ${UI_BRIDGE_HOST}:${UI_BRIDGE_PORT}…"
+# exec ros2 run ui_bridge api_node
+
+echo "[web_ui:auto_launch] Sleeping (manual mode) — run the node with:"
+echo "  ros2 run ui_bridge_cpp ui_bridge_cpp_node --ros-args -p port:=\${UI_BRIDGE_PORT}"
+exec sleep infinity

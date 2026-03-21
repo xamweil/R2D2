@@ -116,5 +116,3 @@ frontend/assets/fonts/
 
 * Implement head movement automation
 * Implement 3D robot state visualization
-
-

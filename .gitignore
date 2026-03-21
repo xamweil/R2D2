@@ -44,3 +44,6 @@ test.jpg
 # Temporary inference outputs
 inference_output/
 detections/
+
+sync.sh
+watch.sh
