@@ -15,7 +15,6 @@
   <depend>sensor_msgs</depend>
   <depend>tcp_msg</depend>
 
-  <build_depend>libboost-dev</build_depend>
   <build_depend>rapidjson-dev</build_depend>
 
   <export>

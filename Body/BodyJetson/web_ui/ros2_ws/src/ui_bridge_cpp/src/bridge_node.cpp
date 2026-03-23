@@ -17,22 +17,17 @@ BridgeNode::BridgeNode(const rclcpp::NodeOptions &options)
     declare_parameter("port", PORT);
     declare_parameter("doc_root", std::string("/home/ros/frontend"));
 
-    port_ = get_parameter("port").as_int();
+    port_ = static_cast<int>(get_parameter("port").as_int());
     doc_root_ = get_parameter("doc_root").as_string();
 
     camera_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
         "/relay/camera/camera_info", rclcpp::SensorDataQoS(),
-        [this](const sensor_msgs::msg::CameraInfo &msg) {
-            camera_info_callback(msg);
-        });
+        [this](auto &msg) { camera_info_callback(msg); });
 
     compressed_image_sub_ =
         create_subscription<sensor_msgs::msg::CompressedImage>(
             "/relay/camera/image_raw/compressed", rclcpp::SensorDataQoS(),
-            [this](
-                const sensor_msgs::msg::CompressedImage::ConstSharedPtr &msg) {
-                compressed_image_callback(msg);
-            });
+            [this](auto &msg) { compressed_image_callback(msg); });
 
     auto make_imu_cb = [this](size_t idx) {
         return [this, idx](const tcp_msg::msg::MPU6500Sample &msg) {
@@ -43,19 +38,19 @@ BridgeNode::BridgeNode(const rclcpp::NodeOptions &options)
         };
     };
 
-    iml_left_foot_sub_ = create_subscription<tcp_msg::msg::MPU6500Sample>(
+    imu_left_foot_sub_ = create_subscription<tcp_msg::msg::MPU6500Sample>(
         "/leg_l/imu/foot", rclcpp::SensorDataQoS(), make_imu_cb(0));
 
-    iml_left_leg_sub_ = create_subscription<tcp_msg::msg::MPU6500Sample>(
+    imu_left_leg_sub_ = create_subscription<tcp_msg::msg::MPU6500Sample>(
         "/leg_l/imu/leg", rclcpp::SensorDataQoS(), make_imu_cb(1));
 
-    iml_right_foot_sub_ = create_subscription<tcp_msg::msg::MPU6500Sample>(
+    imu_right_foot_sub_ = create_subscription<tcp_msg::msg::MPU6500Sample>(
         "/leg_r/imu/foot", rclcpp::SensorDataQoS(), make_imu_cb(2));
 
-    iml_right_leg_sub_ = create_subscription<tcp_msg::msg::MPU6500Sample>(
+    imu_right_leg_sub_ = create_subscription<tcp_msg::msg::MPU6500Sample>(
         "/leg_r/imu/leg", rclcpp::SensorDataQoS(), make_imu_cb(3));
 
-    iml_body_sub_ = create_subscription<tcp_msg::msg::MPU6500Sample>(
+    imu_body_sub_ = create_subscription<tcp_msg::msg::MPU6500Sample>(
         "/Body/mpu", rclcpp::SensorDataQoS(), make_imu_cb(4));
 
     state_timer_ = create_wall_timer(std::chrono::milliseconds(BROADCAST_FREQ),
