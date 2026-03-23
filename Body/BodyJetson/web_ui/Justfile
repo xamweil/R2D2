@@ -24,7 +24,7 @@ run package node *args:
     ros2 run {{package}} {{node}} {{args}}
 
 run-bridge *args:
-    just run ui_bridge_cpp ui_bridge_cpp_node {{args}}
+    just run ui_bridge_cpp ui_bridge_cpp_node --ros-args -p doc_root:=$(pwd)/frontend {{args}} 
 
 source-overlay:
     #!/usr/bin/env bash

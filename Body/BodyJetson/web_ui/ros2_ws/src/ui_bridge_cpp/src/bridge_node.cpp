@@ -22,12 +22,17 @@ BridgeNode::BridgeNode(const rclcpp::NodeOptions &options)
 
     camera_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
         "/relay/camera/camera_info", rclcpp::SensorDataQoS(),
-        [this](auto &msg) { camera_info_callback(msg); });
+        [this](const sensor_msgs::msg::CameraInfo &msg) {
+            camera_info_callback(msg);
+        });
 
     compressed_image_sub_ =
         create_subscription<sensor_msgs::msg::CompressedImage>(
             "/relay/camera/image_raw/compressed", rclcpp::SensorDataQoS(),
-            [this](auto &msg) { compressed_image_callback(msg); });
+            [this](
+                const sensor_msgs::msg::CompressedImage::ConstSharedPtr &msg) {
+                compressed_image_callback(msg);
+            });
 
     auto make_imu_cb = [this](size_t idx) {
         return [this, idx](const tcp_msg::msg::MPU6500Sample &msg) {

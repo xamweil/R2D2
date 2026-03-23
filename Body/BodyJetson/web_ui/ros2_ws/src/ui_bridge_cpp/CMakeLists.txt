@@ -62,10 +62,24 @@ add_library(uWebSockets INTERFACE)
 target_include_directories(uWebSockets INTERFACE ${uwebsockets_SOURCE_DIR}/src)
 target_link_libraries(uWebSockets INTERFACE uSockets)
 
+# -- stb (header-only, for JPEG encoding) --------------------------------------
+FetchContent_Declare(
+    stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG        master 
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(stb)
+
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
+
+
 add_executable(ui_bridge_cpp_node
   src/main.cpp
   src/bridge_node.cpp
   src/http_server.cpp
+  src/jpeg_generator.cpp
 )
 
 target_include_directories(ui_bridge_cpp_node PRIVATE
@@ -79,7 +93,7 @@ target_compile_definitions(ui_bridge_cpp_node PRIVATE
 )
 
 ament_target_dependencies(ui_bridge_cpp_node rclcpp std_msgs sensor_msgs tcp_msg)
-target_link_libraries(ui_bridge_cpp_node uWebSockets)
+target_link_libraries(ui_bridge_cpp_node uWebSockets stb)
 
 install(TARGETS ui_bridge_cpp_node
   DESTINATION lib/${PROJECT_NAME}
