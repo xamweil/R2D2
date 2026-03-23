@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .shell { fill: #dce3ed; }
+    .blue { fill: #1565c0; }
+    .dark { fill: #1a1a30; }
+    .red { fill: #c62828; }
+    .gray { fill: #b0bec5; }
+    .outline { fill: none; stroke: none; }
+    @media (prefers-color-scheme: dark) {
+      .outline { stroke: #7eb0f0; stroke-width: 1; }
+    }
+  </style>
+  <!-- R2D2 head silhouette -->
+  <path class="shell" d="M5,27 V10 C5,2 27,2 27,10 V27 Q27,31 23,31 H9 Q5,31 5,27Z"/>
+  <path class="outline" d="M5,27 V10 C5,2 27,2 27,10 V27 Q27,31 23,31 H9 Q5,31 5,27Z"/>
+  <!-- Blue band across dome -->
+  <rect class="blue" x="5" y="12.5" width="22" height="3"/>
+  <!-- Photoreceptor eye -->
+  <circle class="dark" cx="16" cy="8.5" r="4"/>
+  <circle class="red" cx="16" cy="8.5" r="2.5"/>
+  <circle fill="white" opacity="0.4" cx="14.5" cy="7" r="1"/>
+  <!-- Dome/body junction -->
+  <line x1="5" y1="16" x2="27" y2="16" stroke="#b0bec5" stroke-width="0.7"/>
+  <!-- Body panels -->
+  <rect class="blue" x="9" y="19" width="14" height="2.5" rx="1"/>
+  <rect class="gray" x="10.5" y="23.5" width="11" height="2" rx="1"/>
+</svg>
