@@ -37,15 +37,17 @@ public:
     const std::string &get_doc_root() const {
         return doc_root_;
     }
+    int get_mjpeg_fps() const {
+        return mjpeg_fps_;
+    }
 
     void set_broadcast(std::function<void(const std::string &)> broadcast_fn);
-    void set_binary_broadcast(std::function<void(const std::string &)> fn);
 
 private:
     int port_;
+    int mjpeg_fps_;
     std::string doc_root_;
     std::function<void(const std::string &)> broadcast_fn_;
-    std::function<void(const std::string &)> binary_broadcast_fn_;
 
     // imu subscriptions
     rclcpp::Subscription<tcp_msg::msg::MPU6500Sample>::SharedPtr

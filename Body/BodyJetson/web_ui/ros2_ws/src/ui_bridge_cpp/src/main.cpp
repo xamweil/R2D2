@@ -10,7 +10,10 @@ int main(int argc, char *argv[]) {
 
     auto node = std::make_shared<ui_bridge_cpp::BridgeNode>();
     ui_bridge_cpp::HttpServer http_server(node->get_doc_root(),
-                                          node->get_logger());
+                                          node->get_logger(),
+                                          node->get_mjpeg_fps());
+    http_server.set_image_source(
+        [&node]() { return node->get_latest_image(); });
 
     rclcpp::on_shutdown([&http_server]() { http_server.shutdown(); });
     std::thread ros_thread([&node]() { rclcpp::spin(node); });

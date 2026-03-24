@@ -16,9 +16,11 @@ BridgeNode::BridgeNode(const rclcpp::NodeOptions &options)
     : Node("ui_bridge_cpp", options) {
     declare_parameter("port", PORT);
     declare_parameter("doc_root", std::string("/home/ros/frontend"));
+    declare_parameter("mjpeg_fps", 3);
 
     port_ = static_cast<int>(get_parameter("port").as_int());
     doc_root_ = get_parameter("doc_root").as_string();
+    mjpeg_fps_ = static_cast<int>(get_parameter("mjpeg_fps").as_int());
 
     camera_info_sub_ = create_subscription<sensor_msgs::msg::CameraInfo>(
         "/relay/camera/camera_info", rclcpp::SensorDataQoS(),

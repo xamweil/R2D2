@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+    add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 find_package(ament_cmake REQUIRED)
@@ -19,13 +19,13 @@ find_package(tcp_msg REQUIRED)
 # RapidJSON: try config mode first, fall back to header search
 find_package(RapidJSON QUIET)
 if(NOT RapidJSON_FOUND)
-  find_path(RAPIDJSON_INCLUDE_DIRS
+    find_path(RAPIDJSON_INCLUDE_DIRS
     NAMES rapidjson/document.h
     PATHS /usr/include /usr/local/include
   )
-  if(NOT RAPIDJSON_INCLUDE_DIRS)
-    message(FATAL_ERROR "RapidJSON not found")
-  endif()
+    if(NOT RAPIDJSON_INCLUDE_DIRS)
+        message(FATAL_ERROR "RapidJSON not found")
+    endif()
 endif()
 
 include(FetchContent)
@@ -62,25 +62,32 @@ add_library(uWebSockets INTERFACE)
 target_include_directories(uWebSockets INTERFACE ${uwebsockets_SOURCE_DIR}/src)
 target_link_libraries(uWebSockets INTERFACE uSockets)
 
-# -- stb (header-only, for JPEG encoding) --------------------------------------
-FetchContent_Declare(
-    stb
-    GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG        master 
-    GIT_SHALLOW    TRUE
-)
-FetchContent_MakeAvailable(stb)
+# Stream an animated test pattern instead of real camera frames on /mjpeg.
+# Enable with: colcon build --cmake-args -DMJPEG_TEST_PATTERN=ON
+option(MJPEG_TEST_PATTERN "Use generated test pattern for MJPEG stream" OFF)
 
-add_library(stb INTERFACE)
-target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
+if(MJPEG_TEST_PATTERN)
+  FetchContent_Declare(
+      stb
+      GIT_REPOSITORY https://github.com/nothings/stb.git
+      GIT_TAG        28d546d5eb77d4585506a20480f4de2e706dff4c
+      GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(stb)
 
+  add_library(stb INTERFACE)
+  target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
+endif()
 
 add_executable(ui_bridge_cpp_node
   src/main.cpp
   src/bridge_node.cpp
   src/http_server.cpp
-  src/jpeg_generator.cpp
 )
+
+if(MJPEG_TEST_PATTERN)
+  target_sources(ui_bridge_cpp_node PRIVATE src/jpeg_generator.cpp)
+endif()
 
 target_include_directories(ui_bridge_cpp_node PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -90,13 +97,20 @@ target_include_directories(ui_bridge_cpp_node PRIVATE
 target_compile_definitions(ui_bridge_cpp_node PRIVATE
     LIBUS_NO_SSL
     UWS_NO_ZLIB
+    $<$<BOOL:${MJPEG_TEST_PATTERN}>:MJPEG_TEST_PATTERN>
 )
 
 ament_target_dependencies(ui_bridge_cpp_node rclcpp std_msgs sensor_msgs tcp_msg)
-target_link_libraries(ui_bridge_cpp_node uWebSockets stb)
+target_link_libraries(ui_bridge_cpp_node uWebSockets
+    $<$<BOOL:${MJPEG_TEST_PATTERN}>:stb>
+)
 
 install(TARGETS ui_bridge_cpp_node
   DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch
 )
 
 ament_package()

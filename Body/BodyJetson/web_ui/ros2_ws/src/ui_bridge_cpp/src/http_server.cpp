@@ -10,9 +10,11 @@ namespace ui_bridge_cpp {
 
 static constexpr std::string_view BOUNDARY = "mjpeg_frame_boundary";
 
-HttpServer::HttpServer(std::string doc_root, const rclcpp::Logger &logger)
+HttpServer::HttpServer(std::string doc_root, const rclcpp::Logger &logger,
+                       int mjpeg_fps)
     : doc_root_(std::move(doc_root)),
-      logger_(logger)
+      logger_(logger),
+      mjpeg_fps_(mjpeg_fps)
      {
 
     app_.get("/", [this](auto *res, auto * /*req*/) {
@@ -94,21 +96,23 @@ void HttpServer::serve_mjpeg_stream(uWS::HttpResponse<false> *res,
 }
 
 // NOLINTBEGIN
-const int TARGET_FPS = 15;
 
-std::string make_mjpeg_frame(const std::string &jpeg_data) {
-    std::string frame;
-    frame.reserve(jpeg_data.size() + 128);
-    frame += "--";
-    frame += BOUNDARY;
-    frame += "\r\n";
-    frame += "Content-Type: image/jpeg\r\n";
-    frame += "Content-Length: ";
-    frame += std::to_string(jpeg_data.size());
-    frame += "\r\n\r\n";
-    frame += jpeg_data;
-    frame += "\r\n";
-    return frame;
+std::string make_mjpeg_header(size_t content_length) {
+    std::string header;
+    header.reserve(128);
+    header += "--";
+    header += BOUNDARY;
+    header += "\r\n";
+    header += "Content-Type: image/jpeg\r\n";
+    header += "Content-Length: ";
+    header += std::to_string(content_length);
+    header += "\r\n\r\n";
+    return header;
+}
+
+void HttpServer::set_image_source(
+    std::function<sensor_msgs::msg::CompressedImage::ConstSharedPtr()> fn) {
+    image_source_ = std::move(fn);
 }
 
 void HttpServer::setup_mjpeg_timer() {
@@ -127,16 +131,31 @@ void HttpServer::setup_mjpeg_timer() {
             if (self->mjpeg_clients_.empty())
                 return;
 
-            std::string jpeg = self->jpeg_generator_.next_frame();
-            std::string frame = make_mjpeg_frame(jpeg);
-            std::string_view frame_view(frame.data(), frame.size());
+#ifdef MJPEG_TEST_PATTERN
+            std::string test_jpeg = self->jpeg_generator_.next_frame();
+            const char *data = test_jpeg.data();
+            size_t size = test_jpeg.size();
+#else
+            if (!self->image_source_)
+                return;
+            auto img = self->image_source_();
+            if (!img || img->data.empty())
+                return;
+            const char *data =
+                reinterpret_cast<const char *>(img->data.data());
+            size_t size = img->data.size();
+#endif
+
+            std::string header = make_mjpeg_header(size);
+            std::string_view img_view(data, size);
 
             for (auto *res : self->mjpeg_clients_) {
-                bool ok = res->write(frame_view);
-                (void)ok;
+                res->write(header);
+                res->write(img_view);
+                res->write("\r\n");
             }
         },
-        1000 / TARGET_FPS, 1000 / TARGET_FPS);
+        1000 / self_ptr->mjpeg_fps_, 1000 / self_ptr->mjpeg_fps_);
 }
 // NOLINTEND
 

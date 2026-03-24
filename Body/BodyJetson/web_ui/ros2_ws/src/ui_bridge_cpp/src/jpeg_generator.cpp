@@ -15,6 +15,10 @@ static void jpg_write_cb(void *ctx, void *data, int size) {
     out->append(static_cast<const char *>(data), size);
 }
 
+namespace ui_bridge_cpp {
+
+JpegGenerator::JpegGenerator() : JpegGenerator(650, 480) {}
+
 JpegGenerator::JpegGenerator(int w, int h)
     : width(w), height(h), pixels(w * h * 3, 0) {
     // Pre-encode a single black frame; pixels are already zeroed
@@ -74,4 +78,6 @@ std::string JpegGenerator::next_frame(int quality) {
                            pixels.data(), quality);
     return jpeg_data;
 }
+
+} // namespace ui_bridge_cpp
 // NOLINTEND
