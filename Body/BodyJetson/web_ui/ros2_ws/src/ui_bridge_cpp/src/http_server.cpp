@@ -14,8 +14,7 @@ HttpServer::HttpServer(std::string doc_root, const rclcpp::Logger &logger,
                        int mjpeg_fps)
     : doc_root_(std::move(doc_root)),
       logger_(logger),
-      mjpeg_fps_(mjpeg_fps)
-     {
+      mjpeg_fps_(mjpeg_fps) {
 
     app_.get("/", [this](auto *res, auto * /*req*/) {
         serve_file(res, doc_root_ + "/index.html");
@@ -26,6 +25,22 @@ HttpServer::HttpServer(std::string doc_root, const rclcpp::Logger &logger,
 
     app_.get("/mjpeg",
              [this](auto *res, auto *req) { serve_mjpeg_stream(res, req); });
+
+    app_.ws<int>(
+        "/ws",
+        {.open =
+             [this](auto *ws) {
+                 ws->subscribe(WS_TOPIC);
+                 ws->send(R"({"type":"hello","payload":{}})",
+                          uWS::OpCode::TEXT);
+                 RCLCPP_INFO(logger_, "[ws] client connected");
+             },
+         .message = [](auto * /*ws*/, std::string_view /*msg*/,
+                       uWS::OpCode /*op*/) {},
+         .close =
+             [this](auto * /*ws*/, int /*code*/, std::string_view /*msg*/) {
+                 RCLCPP_INFO(logger_, "[ws] client disconnected");
+             }});
 
     app_.get("/*", [](auto *res, auto * /*req*/) {
         res->writeStatus("404 Not Found");
@@ -52,6 +67,12 @@ void HttpServer::shutdown() {
     app_.getLoop()->defer([this]() {
         us_timer_close(mjpeg_timer_);
         app_.close();
+    });
+}
+
+void HttpServer::broadcast(const std::string &message) {
+    app_.getLoop()->defer([this, message]() {
+        app_.publish(WS_TOPIC, message, uWS::OpCode::TEXT);
     });
 }
 
@@ -87,11 +108,13 @@ void HttpServer::serve_mjpeg_stream(uWS::HttpResponse<false> *res,
     res->writeHeader("Access-Control-Allow-Origin", "*");
 
     mjpeg_clients_.insert(res);
-    RCLCPP_INFO(logger_, "[+] Client connected (%zu total)\n", mjpeg_clients_.size());
+    RCLCPP_INFO(logger_, "[+] Client connected (%zu total)\n",
+                mjpeg_clients_.size());
 
     res->onAborted([this, res]() {
         mjpeg_clients_.erase(res);
-        RCLCPP_INFO(logger_, "[-] Client disconnected (%zu total)\n", mjpeg_clients_.size());
+        RCLCPP_INFO(logger_, "[-] Client disconnected (%zu total)\n",
+                    mjpeg_clients_.size());
     });
 }
 
@@ -141,8 +164,7 @@ void HttpServer::setup_mjpeg_timer() {
             auto img = self->image_source_();
             if (!img || img->data.empty())
                 return;
-            const char *data =
-                reinterpret_cast<const char *>(img->data.data());
+            const char *data = reinterpret_cast<const char *>(img->data.data());
             size_t size = img->data.size();
 #endif
 

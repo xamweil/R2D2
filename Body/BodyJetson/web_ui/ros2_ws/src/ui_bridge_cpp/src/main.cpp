@@ -14,6 +14,8 @@ int main(int argc, char *argv[]) {
                                           node->get_mjpeg_fps());
     http_server.set_image_source(
         [&node]() { return node->get_latest_image(); });
+    node->set_broadcast(
+        [&http_server](const std::string &msg) { http_server.broadcast(msg); });
 
     rclcpp::on_shutdown([&http_server]() { http_server.shutdown(); });
     std::thread ros_thread([&node]() { rclcpp::spin(node); });

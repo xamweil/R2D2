@@ -62,17 +62,37 @@ Browser Frontend
 
 ## Running the UI
 
+Using the launch file (recommended):
+
+```bash
+just launch-bridge
+```
+
+Override parameters:
+
+```bash
+just launch-bridge port:=8080 mjpeg_fps:=15
+```
+
+Or launch directly:
+
+```bash
+ros2 launch ui_bridge_cpp ui_bridge_cpp.launch.py port:=9090 doc_root:=/path/to/frontend mjpeg_fps:=3
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `port` | `9090` | HTTP listen port |
+| `doc_root` | `/home/ros/frontend` | Path to the frontend static files |
+| `mjpeg_fps` | `3` | MJPEG stream frame rate |
+
+### Docker
+
 From the main robot repository:
 
 ```bash
 docker compose up -d --build web_ui
-````
-
-The container will automatically:
-
-1. build the ROS workspace if necessary
-2. launch the `ui_bridge` node
-3. start the web server
+```
 
 ---
 
@@ -109,6 +129,18 @@ Files located in:
 ```
 frontend/assets/fonts/
 ```
+
+---
+
+## MJPEG_TEST_PATTERN
+
+By default the `/mjpeg` endpoint streams live frames from the `/relay/camera/image_raw/compressed` ROS topic. If no camera is available and you want to verify the MJPEG pipeline, enable the built-in animated test pattern:
+
+```bash
+colcon build --packages-select ui_bridge_cpp --cmake-args -DMJPEG_TEST_PATTERN=ON
+```
+
+This compiles in `jpeg_generator.cpp` and the stb image library. Without the flag, neither is included in the binary.
 
 ---
 

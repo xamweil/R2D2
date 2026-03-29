@@ -1,18 +1,8 @@
-deps:
-    rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y
-
-build-motor-control:
-    colcon build --symlink-install --packages-select motor_control
-
-launch-motor-control:
-    #!/usr/bin/env bash
-    source ./install/setup.bash && ros2 launch motor_control launch.py
-
 build packages="":
     #!/usr/bin/env bash
     cd ros2_ws
-    if [ -n "{{packages}}" ]; then
-        colcon build --symlink-install --packages-select {{packages}}
+    if [ -n "{{ packages }}" ]; then
+        colcon build --symlink-install --packages-select {{ packages }}
     else
         colcon build --symlink-install
     fi
@@ -21,10 +11,19 @@ run package node *args:
     #!/usr/bin/env bash
     cd ./ros2_ws
     source ./install/setup.bash
-    ros2 run {{package}} {{node}} {{args}}
+    ros2 run {{ package }} {{ node }} {{ args }}
 
 run-bridge *args:
-    just run ui_bridge_cpp ui_bridge_cpp_node --ros-args -p doc_root:=$(pwd)/frontend {{args}} 
+    just run ui_bridge_cpp ui_bridge_cpp_node --ros-args -p doc_root:=$(pwd)/frontend {{ args }}
+
+launch-bridge *args:
+    #!/usr/bin/env bash
+    cd ./ros2_ws
+    source ./install/setup.bash
+    ros2 launch ui_bridge_cpp ui_bridge_cpp.launch.py doc_root:=$(cd .. && pwd)/frontend {{ args }}
+
+deps:
+    rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y
 
 source-overlay:
     #!/usr/bin/env bash
@@ -45,4 +44,3 @@ lint:
 
 default:
     @just --list
-

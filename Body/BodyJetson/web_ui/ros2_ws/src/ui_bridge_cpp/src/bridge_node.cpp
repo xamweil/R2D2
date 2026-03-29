@@ -1,5 +1,7 @@
 #include "bridge_node.hpp"
 
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/node_options.hpp>
 #include <rclcpp/qos.hpp>
@@ -10,6 +12,9 @@
 namespace ui_bridge_cpp {
 
 static constexpr uint64_t BROADCAST_FREQ = 100;
+static constexpr const char *IMU_ALIASES[SensorState::NUM_IMU] = {
+    "imu_left_foot", "imu_left_leg", "imu_right_foot", "imu_right_leg",
+    "imu_body"};
 static constexpr int PORT = 9090;
 
 BridgeNode::BridgeNode(const rclcpp::NodeOptions &options)
@@ -85,11 +90,6 @@ void BridgeNode::compressed_image_callback(
         std::lock_guard<std::mutex> lock(image_mutex_);
         image_ = msg;
     }
-    // if (binary_broadcast_fn_) {
-    //     binary_broadcast_fn_(
-    //         std::string(reinterpret_cast<const char *>(msg->data.data()),
-    //                     msg->data.size()));
-    // }
 }
 
 double BridgeNode::now_sec() {
@@ -101,8 +101,60 @@ double BridgeNode::now_sec() {
 void BridgeNode::broadcast_state() {
     if (!broadcast_fn_)
         return;
-    // sensor_state_.to_json(state_json_, now_sec());
-    // broadcast_fn_(state_json_.dump());
+
+    double now = now_sec();
+    rapidjson::StringBuffer buf;
+    rapidjson::Writer<rapidjson::StringBuffer> w(buf);
+
+    w.StartObject();
+    w.Key("type");
+    w.String("robot_state");
+    w.Key("payload");
+    w.StartObject();
+    w.Key("t");
+    w.Double(now);
+    w.Key("stale_sec");
+    w.Double(SensorState::STALE_SEC);
+    w.Key("entries");
+    w.StartObject();
+
+    for (size_t i = 0; i < SensorState::NUM_IMU; ++i) {
+        const auto &e = sensor_state_.imu[i];
+        w.Key(IMU_ALIASES[i]);
+        w.StartObject();
+        w.Key("present");
+        w.Bool(e.received);
+        w.Key("stale");
+        w.Bool(!e.received || (now - e.recv_time) > SensorState::STALE_SEC);
+        w.Key("age");
+        w.Double(e.received ? now - e.recv_time : -1.0);
+        w.Key("data");
+        if (e.received) {
+            w.StartObject();
+            w.Key("accel");
+            w.StartArray();
+            for (int j = 0; j < 3; ++j)
+                w.Int(e.msg.accel[j]);
+            w.EndArray();
+            w.Key("gyro");
+            w.StartArray();
+            for (int j = 0; j < 3; ++j)
+                w.Int(e.msg.gyro[j]);
+            w.EndArray();
+            w.Key("ts_ms");
+            w.Uint(e.msg.ts_ms);
+            w.EndObject();
+        } else {
+            w.Null();
+        }
+        w.EndObject();
+    }
+
+    w.EndObject(); // entries
+    w.EndObject(); // payload
+    w.EndObject();
+
+    broadcast_fn_(std::string(buf.GetString(), buf.GetSize()));
 }
 
 } // namespace ui_bridge_cpp

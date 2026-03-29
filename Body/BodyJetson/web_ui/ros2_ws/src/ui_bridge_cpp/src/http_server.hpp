@@ -15,11 +15,14 @@ namespace ui_bridge_cpp {
 
 class HttpServer {
 public:
+    static constexpr const char *WS_TOPIC = "broadcast";
+
     HttpServer(std::string doc_root, const rclcpp::Logger &logger,
                int mjpeg_fps);
 
     void run(int port);
     void shutdown();
+    void broadcast(const std::string &message);
 
     void set_image_source(
         std::function<sensor_msgs::msg::CompressedImage::ConstSharedPtr()> fn);
