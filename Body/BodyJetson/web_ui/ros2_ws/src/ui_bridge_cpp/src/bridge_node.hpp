@@ -5,6 +5,7 @@
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
 #include <tcp_msg/msg/mpu6500_sample.hpp>
+#include <vision_msgs/msg/detection2_d_array.hpp>
 
 #include <functional>
 #include <mutex>
@@ -18,10 +19,18 @@ struct ImuEntry {
     bool received = false;
 };
 
+struct DetectionEntry {
+    vision_msgs::msg::Detection2DArray msg;
+    double recv_time = 0.0;
+    bool received = false;
+};
+
 struct SensorState {
     static constexpr size_t NUM_IMU = 5;
     static constexpr double STALE_SEC = 2.0;
     ImuEntry imu[NUM_IMU];
+    DetectionEntry scene_detections;
+    DetectionEntry tracking_tracks;
 };
 
 class BridgeNode : public rclcpp::Node {
@@ -59,6 +68,11 @@ private:
     rclcpp::Subscription<tcp_msg::msg::MPU6500Sample>::SharedPtr
         imu_right_leg_sub_;
     rclcpp::Subscription<tcp_msg::msg::MPU6500Sample>::SharedPtr imu_body_sub_;
+    // detection subscriptions
+    rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr
+        scene_detections_sub_;
+    rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr
+        tracking_tracks_sub_;
     // camera subscriptions
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr
         camera_info_sub_;

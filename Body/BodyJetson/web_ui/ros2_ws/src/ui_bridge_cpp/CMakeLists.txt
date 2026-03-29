@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.8)
 project(ui_bridge_cpp LANGUAGES C CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# set(CMAKE_CXX_STANDARD 17)
+# set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -15,6 +17,7 @@ find_package(std_msgs REQUIRED)
 
 find_package(sensor_msgs REQUIRED)
 find_package(tcp_msg REQUIRED)
+find_package(vision_msgs REQUIRED)
 
 # RapidJSON: try config mode first, fall back to header search
 find_package(RapidJSON QUIET)
@@ -100,7 +103,7 @@ target_compile_definitions(ui_bridge_cpp_node PRIVATE
     $<$<BOOL:${MJPEG_TEST_PATTERN}>:MJPEG_TEST_PATTERN>
 )
 
-ament_target_dependencies(ui_bridge_cpp_node rclcpp std_msgs sensor_msgs tcp_msg)
+ament_target_dependencies(ui_bridge_cpp_node rclcpp std_msgs sensor_msgs tcp_msg vision_msgs)
 target_link_libraries(ui_bridge_cpp_node uWebSockets
     $<$<BOOL:${MJPEG_TEST_PATTERN}>:stb>
 )

@@ -65,6 +65,24 @@ BridgeNode::BridgeNode(const rclcpp::NodeOptions &options)
     imu_body_sub_ = create_subscription<tcp_msg::msg::MPU6500Sample>(
         "/Body/mpu", rclcpp::SensorDataQoS(), make_imu_cb(4));
 
+    scene_detections_sub_ =
+        create_subscription<vision_msgs::msg::Detection2DArray>(
+            "/scene_understanding/detections", rclcpp::SensorDataQoS(),
+            [this](const vision_msgs::msg::Detection2DArray &msg) {
+                sensor_state_.scene_detections.msg = msg;
+                sensor_state_.scene_detections.recv_time = now_sec();
+                sensor_state_.scene_detections.received = true;
+            });
+
+    tracking_tracks_sub_ =
+        create_subscription<vision_msgs::msg::Detection2DArray>(
+            "/tracking/tracks", rclcpp::SensorDataQoS(),
+            [this](const vision_msgs::msg::Detection2DArray &msg) {
+                sensor_state_.tracking_tracks.msg = msg;
+                sensor_state_.tracking_tracks.recv_time = now_sec();
+                sensor_state_.tracking_tracks.received = true;
+            });
+
     state_timer_ = create_wall_timer(std::chrono::milliseconds(BROADCAST_FREQ),
                                      [this]() { broadcast_state(); });
 }
@@ -96,6 +114,45 @@ double BridgeNode::now_sec() {
     using clock = std::chrono::steady_clock;
     return std::chrono::duration<double>(clock::now().time_since_epoch())
         .count();
+}
+
+static void write_detection_entry(
+    rapidjson::Writer<rapidjson::StringBuffer> &w, const char *key,
+    const DetectionEntry &e, double now, bool include_id) {
+    w.Key(key);
+    w.StartObject();
+    w.Key("present");
+    w.Bool(e.received);
+    w.Key("stale");
+    w.Bool(!e.received || (now - e.recv_time) > SensorState::STALE_SEC);
+    w.Key("age");
+    w.Double(e.received ? now - e.recv_time : -1.0);
+    w.Key("data");
+    if (e.received) {
+        w.StartArray();
+        for (const auto &det : e.msg.detections) {
+            w.StartArray();
+            w.Double(det.bbox.center.position.x);
+            w.Double(det.bbox.center.position.y);
+            w.Double(det.bbox.size_x);
+            w.Double(det.bbox.size_y);
+            if (!det.results.empty()) {
+                w.String(det.results[0].hypothesis.class_id.c_str());
+                w.Double(det.results[0].hypothesis.score);
+            } else {
+                w.String("");
+                w.Double(0.0);
+            }
+            if (include_id) {
+                w.String(det.id.c_str());
+            }
+            w.EndArray();
+        }
+        w.EndArray();
+    } else {
+        w.Null();
+    }
+    w.EndObject();
 }
 
 void BridgeNode::broadcast_state() {
@@ -149,6 +206,11 @@ void BridgeNode::broadcast_state() {
         }
         w.EndObject();
     }
+
+    write_detection_entry(w, "scene_detections",
+                          sensor_state_.scene_detections, now, false);
+    write_detection_entry(w, "tracking_tracks",
+                          sensor_state_.tracking_tracks, now, true);
 
     w.EndObject(); // entries
     w.EndObject(); // payload
