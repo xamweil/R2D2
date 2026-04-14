@@ -23,6 +23,8 @@ launch-bridge *args:
     ros2 launch ui_bridge_cpp ui_bridge_cpp.launch.py doc_root:=$(cd .. && pwd)/frontend {{ args }}
 
 deps:
+    #!/usr/bin/env bash
+    cd ./ros2_ws
     rosdep install -i --from-path src --rosdistro $ROS_DISTRO -y
 
 source-overlay:

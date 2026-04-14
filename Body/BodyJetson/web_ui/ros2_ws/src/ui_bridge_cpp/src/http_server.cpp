@@ -42,6 +42,8 @@ HttpServer::HttpServer(std::string doc_root, const rclcpp::Logger &logger,
                  RCLCPP_INFO(logger_, "[ws] client disconnected");
              }});
 
+    setup_post_routes();
+
     app_.get("/*", [](auto *res, auto * /*req*/) {
         res->writeStatus("404 Not Found");
         res->writeHeader("Content-Type", "text/plain");
@@ -113,6 +115,7 @@ void HttpServer::serve_mjpeg_stream(uWS::HttpResponse<false> *res,
 
     res->onAborted([this, res]() {
         mjpeg_clients_.erase(res);
+        mjpeg_backpressure_.erase(res);
         RCLCPP_INFO(logger_, "[-] Client disconnected (%zu total)\n",
                     mjpeg_clients_.size());
     });
@@ -136,6 +139,71 @@ std::string make_mjpeg_header(size_t content_length) {
 void HttpServer::set_image_source(
     std::function<sensor_msgs::msg::CompressedImage::ConstSharedPtr()> fn) {
     image_source_ = std::move(fn);
+}
+
+void HttpServer::set_command_handler(CommandHandler handler) {
+    command_handler_ = std::move(handler);
+}
+
+void HttpServer::setup_post_routes() {
+    auto make_post_handler = [this](const std::string &kind) {
+        return [this, kind](auto *res, auto * /*req*/) {
+            if (!command_handler_) {
+                res->writeStatus("503 Service Unavailable");
+                res->end(R"({"ok":false,"error":"no command handler"})");
+                return;
+            }
+
+            auto body = std::make_shared<std::string>();
+            auto alive = std::make_shared<bool>(true);
+
+            res->onAborted([alive]() { *alive = false; });
+
+            res->onData(
+                [this, res, body, alive, kind](std::string_view data,
+                                               bool last) {
+                    body->append(data);
+                    if (!last)
+                        return;
+                    if (!*alive)
+                        return;
+
+                    auto *loop = uWS::Loop::get();
+                    auto respond = [res, alive,
+                                    loop](const std::string &result) {
+                        loop->defer([res, alive, result]() {
+                            if (!*alive)
+                                return;
+                            res->cork([&]() {
+                                res->writeHeader("Content-Type",
+                                                 "application/json");
+                                res->writeHeader(
+                                    "Access-Control-Allow-Origin", "*");
+                                res->end(result);
+                            });
+                        });
+                    };
+
+                    command_handler_(kind, *body, respond);
+                });
+        };
+    };
+
+    app_.post("/publish/allowed", make_post_handler("publish"));
+    app_.post("/call/allowed", make_post_handler("call_service"));
+    app_.post("/action/start", make_post_handler("action_start"));
+    app_.post("/action/cancel", make_post_handler("action_cancel"));
+
+    auto options_handler = [](auto *res, auto * /*req*/) {
+        res->writeHeader("Access-Control-Allow-Origin", "*");
+        res->writeHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+        res->writeHeader("Access-Control-Allow-Headers", "Content-Type");
+        res->end();
+    };
+    app_.options("/publish/allowed", options_handler);
+    app_.options("/call/allowed", options_handler);
+    app_.options("/action/start", options_handler);
+    app_.options("/action/cancel", options_handler);
 }
 
 void HttpServer::setup_mjpeg_timer() {
@@ -172,7 +240,16 @@ void HttpServer::setup_mjpeg_timer() {
             std::string_view img_view(data, size);
 
             for (auto *res : self->mjpeg_clients_) {
-                res->write(header);
+                if (self->mjpeg_backpressure_.count(res))
+                    continue;
+                if (!res->write(header)) {
+                    self->mjpeg_backpressure_.insert(res);
+                    res->onWritable([self, res](uintmax_t) {
+                        self->mjpeg_backpressure_.erase(res);
+                        return false;
+                    });
+                    continue;
+                }
                 res->write(img_view);
                 res->write("\r\n");
             }

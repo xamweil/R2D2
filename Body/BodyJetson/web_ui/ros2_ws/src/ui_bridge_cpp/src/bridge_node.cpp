@@ -1,5 +1,6 @@
 #include "bridge_node.hpp"
 
+#include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 #include <rclcpp/logging.hpp>
@@ -8,6 +9,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <thread>
 
 namespace ui_bridge_cpp {
 
@@ -217,6 +219,298 @@ void BridgeNode::broadcast_state() {
     w.EndObject();
 
     broadcast_fn_(std::string(buf.GetString(), buf.GetSize()));
+}
+
+// ---------------------------------------------------------------------------
+// Command handling
+// ---------------------------------------------------------------------------
+
+std::string BridgeNode::json_ok() { return R"({"ok":true})"; }
+
+std::string BridgeNode::json_error(const std::string &msg) {
+    rapidjson::StringBuffer buf;
+    rapidjson::Writer<rapidjson::StringBuffer> w(buf);
+    w.StartObject();
+    w.Key("ok");
+    w.Bool(false);
+    w.Key("error");
+    w.String(msg.c_str());
+    w.EndObject();
+    return std::string(buf.GetString(), buf.GetSize());
+}
+
+void BridgeNode::push_command(PendingCommand cmd) {
+    std::lock_guard<std::mutex> lock(cmd_mutex_);
+    cmd_queue_.push_back(std::move(cmd));
+}
+
+void BridgeNode::process_commands() {
+    std::deque<PendingCommand> batch;
+    {
+        std::lock_guard<std::mutex> lock(cmd_mutex_);
+        batch.swap(cmd_queue_);
+    }
+    for (auto &cmd : batch) {
+        try {
+            if (cmd.kind == "publish") {
+                handle_publish(cmd.body, cmd.respond);
+            } else if (cmd.kind == "call_service") {
+                handle_call_service(cmd.body, cmd.respond);
+            } else if (cmd.kind == "action_start") {
+                handle_action_start(cmd.body, cmd.respond);
+            } else if (cmd.kind == "action_cancel") {
+                handle_action_cancel(cmd.body, cmd.respond);
+            } else {
+                cmd.respond(json_error("unknown command kind: " + cmd.kind));
+            }
+        } catch (const std::exception &e) {
+            RCLCPP_ERROR(get_logger(), "Command error: %s", e.what());
+            cmd.respond(json_error(e.what()));
+        }
+    }
+}
+
+void BridgeNode::handle_publish(
+    const std::string &body,
+    const std::function<void(const std::string &)> &respond) {
+    rapidjson::Document doc;
+    doc.Parse(body.c_str());
+    if (doc.HasParseError() || !doc.IsObject()) {
+        respond(json_error("invalid JSON"));
+        return;
+    }
+
+    std::string alias =
+        doc.HasMember("alias") && doc["alias"].IsString()
+            ? doc["alias"].GetString()
+            : "";
+    if (alias != "motor_command") {
+        respond(json_error("unknown publish alias: " + alias));
+        return;
+    }
+    if (!doc.HasMember("msg") || !doc["msg"].IsObject()) {
+        respond(json_error("missing 'msg' object"));
+        return;
+    }
+    const auto &m = doc["msg"];
+
+    if (!motor_cmd_pub_) {
+        motor_cmd_pub_ = create_publisher<serial_msg::msg::MotorCommand>(
+            "/motor_command", 10);
+    }
+
+    serial_msg::msg::MotorCommand msg;
+    if (m.HasMember("ids") && m["ids"].IsArray())
+        for (auto &v : m["ids"].GetArray())
+            msg.ids.push_back(static_cast<uint8_t>(v.GetInt()));
+    if (m.HasMember("enable") && m["enable"].IsArray())
+        for (auto &v : m["enable"].GetArray())
+            msg.enable.push_back(v.GetBool());
+    if (m.HasMember("direction") && m["direction"].IsArray())
+        for (auto &v : m["direction"].GetArray())
+            msg.direction.push_back(v.GetBool());
+    if (m.HasMember("angle_set") && m["angle_set"].IsArray())
+        for (auto &v : m["angle_set"].GetArray())
+            msg.angle_set.push_back(v.GetBool());
+    if (m.HasMember("velocity_set") && m["velocity_set"].IsArray())
+        for (auto &v : m["velocity_set"].GetArray())
+            msg.velocity_set.push_back(v.GetBool());
+    if (m.HasMember("angle") && m["angle"].IsArray())
+        for (auto &v : m["angle"].GetArray())
+            msg.angle.push_back(static_cast<float>(v.GetDouble()));
+    if (m.HasMember("velocity") && m["velocity"].IsArray())
+        for (auto &v : m["velocity"].GetArray())
+            msg.velocity.push_back(static_cast<uint8_t>(v.GetInt()));
+
+    motor_cmd_pub_->publish(msg);
+    respond(json_ok());
+}
+
+void BridgeNode::handle_call_service(
+    const std::string &body,
+    const std::function<void(const std::string &)> &respond) {
+    rapidjson::Document doc;
+    doc.Parse(body.c_str());
+    if (doc.HasParseError() || !doc.IsObject()) {
+        respond(json_error("invalid JSON"));
+        return;
+    }
+
+    std::string alias =
+        doc.HasMember("alias") && doc["alias"].IsString()
+            ? doc["alias"].GetString()
+            : "";
+    if (alias != "device_command") {
+        respond(json_error("unknown service alias: " + alias));
+        return;
+    }
+
+    double timeout_sec = 2.0;
+    if (doc.HasMember("timeout_sec") && doc["timeout_sec"].IsNumber())
+        timeout_sec = doc["timeout_sec"].GetDouble();
+
+    if (!device_cmd_client_) {
+        device_cmd_client_ =
+            create_client<serial_msg::srv::DeviceCommand>("/serial_command");
+    }
+
+    if (!device_cmd_client_->wait_for_service(std::chrono::milliseconds(
+            static_cast<int64_t>(timeout_sec * 1000)))) {
+        respond(json_error("service not available: /serial_command"));
+        return;
+    }
+
+    auto request = std::make_shared<serial_msg::srv::DeviceCommand::Request>();
+    if (doc.HasMember("request") && doc["request"].IsObject()) {
+        const auto &r = doc["request"];
+        if (r.HasMember("device_name") && r["device_name"].IsString())
+            request->device_name = r["device_name"].GetString();
+        if (r.HasMember("method_name") && r["method_name"].IsString())
+            request->method_name = r["method_name"].GetString();
+        if (r.HasMember("args") && r["args"].IsArray())
+            for (auto &v : r["args"].GetArray())
+                request->args.push_back(v.GetInt64());
+    }
+
+    auto future = device_cmd_client_->async_send_request(request);
+
+    auto start = std::chrono::steady_clock::now();
+    auto timeout = std::chrono::duration<double>(timeout_sec);
+    while (rclcpp::ok()) {
+        rclcpp::spin_some(shared_from_this());
+        if (future.wait_for(std::chrono::milliseconds(0)) ==
+            std::future_status::ready)
+            break;
+        if (std::chrono::steady_clock::now() - start > timeout) {
+            respond(json_error("service call timed out"));
+            return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    auto result = future.get();
+    rapidjson::StringBuffer buf;
+    rapidjson::Writer<rapidjson::StringBuffer> w(buf);
+    w.StartObject();
+    w.Key("ok");
+    w.Bool(true);
+    w.Key("response");
+    w.StartObject();
+    w.Key("response");
+    w.String(result->response.c_str());
+    w.EndObject();
+    w.EndObject();
+    respond(std::string(buf.GetString(), buf.GetSize()));
+}
+
+void BridgeNode::handle_action_start(
+    const std::string &body,
+    const std::function<void(const std::string &)> &respond) {
+    rapidjson::Document doc;
+    doc.Parse(body.c_str());
+    if (doc.HasParseError() || !doc.IsObject()) {
+        respond(json_error("invalid JSON"));
+        return;
+    }
+
+    std::string alias =
+        doc.HasMember("alias") && doc["alias"].IsString()
+            ? doc["alias"].GetString()
+            : "";
+    if (alias != "follow_track") {
+        respond(json_error("unknown action alias: " + alias));
+        return;
+    }
+    if (!doc.HasMember("goal") || !doc["goal"].IsObject()) {
+        respond(json_error("missing 'goal' object"));
+        return;
+    }
+
+    if (!follow_track_client_) {
+        follow_track_client_ =
+            rclcpp_action::create_client<FollowTrack>(this, "/follow_track");
+    }
+
+    if (!follow_track_client_->wait_for_action_server(
+            std::chrono::seconds(2))) {
+        respond(json_error("action server not available: /follow_track"));
+        return;
+    }
+
+    auto goal_msg = FollowTrack::Goal();
+    const auto &g = doc["goal"];
+    if (g.HasMember("track_id") && g["track_id"].IsInt())
+        goal_msg.track_id = g["track_id"].GetInt();
+
+    auto future = follow_track_client_->async_send_goal(goal_msg);
+
+    auto start = std::chrono::steady_clock::now();
+    while (rclcpp::ok()) {
+        rclcpp::spin_some(shared_from_this());
+        if (future.wait_for(std::chrono::milliseconds(0)) ==
+            std::future_status::ready)
+            break;
+        if (std::chrono::steady_clock::now() - start >
+            std::chrono::seconds(2)) {
+            respond(json_error("action goal send timed out"));
+            return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    auto goal_handle = future.get();
+    if (!goal_handle) {
+        respond(json_error("action goal rejected"));
+        return;
+    }
+
+    active_follow_goal_ = goal_handle;
+    respond(R"({"ok":true,"result":{"accepted":true}})");
+}
+
+void BridgeNode::handle_action_cancel(
+    const std::string &body,
+    const std::function<void(const std::string &)> &respond) {
+    rapidjson::Document doc;
+    doc.Parse(body.c_str());
+    if (doc.HasParseError() || !doc.IsObject()) {
+        respond(json_error("invalid JSON"));
+        return;
+    }
+
+    std::string alias =
+        doc.HasMember("alias") && doc["alias"].IsString()
+            ? doc["alias"].GetString()
+            : "";
+    if (alias != "follow_track") {
+        respond(json_error("unknown action alias: " + alias));
+        return;
+    }
+
+    if (!active_follow_goal_) {
+        respond(R"({"ok":true,"result":{"ok":true,"message":"no_active_goal"}})");
+        return;
+    }
+
+    auto cancel_future =
+        follow_track_client_->async_cancel_goal(active_follow_goal_);
+
+    auto start = std::chrono::steady_clock::now();
+    while (rclcpp::ok()) {
+        rclcpp::spin_some(shared_from_this());
+        if (cancel_future.wait_for(std::chrono::milliseconds(0)) ==
+            std::future_status::ready)
+            break;
+        if (std::chrono::steady_clock::now() - start >
+            std::chrono::seconds(2)) {
+            respond(json_error("cancel action goal timed out"));
+            return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
+    active_follow_goal_.reset();
+    respond(R"({"ok":true,"result":{"ok":true}})");
 }
 
 } // namespace ui_bridge_cpp

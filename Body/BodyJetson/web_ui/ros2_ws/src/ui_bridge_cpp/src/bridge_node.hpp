@@ -7,6 +7,12 @@
 #include <tcp_msg/msg/mpu6500_sample.hpp>
 #include <vision_msgs/msg/detection2_d_array.hpp>
 
+#include <rclcpp_action/rclcpp_action.hpp>
+#include <serial_msg/msg/motor_command.hpp>
+#include <serial_msg/srv/device_command.hpp>
+#include <behavior_msgs/action/follow_track.hpp>
+
+#include <deque>
 #include <functional>
 #include <mutex>
 #include <string>
@@ -23,6 +29,12 @@ struct DetectionEntry {
     vision_msgs::msg::Detection2DArray msg;
     double recv_time = 0.0;
     bool received = false;
+};
+
+struct PendingCommand {
+    std::string kind;  // "publish", "call_service", "action_start", "action_cancel"
+    std::string body;  // raw JSON body
+    std::function<void(const std::string &)> respond;
 };
 
 struct SensorState {
@@ -51,6 +63,9 @@ public:
     }
 
     void set_broadcast(std::function<void(const std::string &)> broadcast_fn);
+
+    void push_command(PendingCommand cmd);
+    void process_commands();
 
 private:
     int port_;
@@ -90,6 +105,33 @@ private:
         const sensor_msgs::msg::CompressedImage::ConstSharedPtr &msg);
     void broadcast_state();
     static double now_sec();
+
+    // Command queue
+    std::deque<PendingCommand> cmd_queue_;
+    std::mutex cmd_mutex_;
+
+    // ROS clients (created lazily)
+    rclcpp::Publisher<serial_msg::msg::MotorCommand>::SharedPtr motor_cmd_pub_;
+    rclcpp::Client<serial_msg::srv::DeviceCommand>::SharedPtr device_cmd_client_;
+
+    using FollowTrack = behavior_msgs::action::FollowTrack;
+    rclcpp_action::Client<FollowTrack>::SharedPtr follow_track_client_;
+    rclcpp_action::ClientGoalHandle<FollowTrack>::SharedPtr active_follow_goal_;
+
+    void handle_publish(const std::string &body,
+                        const std::function<void(const std::string &)> &respond);
+    void handle_call_service(
+        const std::string &body,
+        const std::function<void(const std::string &)> &respond);
+    void handle_action_start(
+        const std::string &body,
+        const std::function<void(const std::string &)> &respond);
+    void handle_action_cancel(
+        const std::string &body,
+        const std::function<void(const std::string &)> &respond);
+
+    static std::string json_ok();
+    static std::string json_error(const std::string &msg);
 };
 
 } // namespace ui_bridge_cpp

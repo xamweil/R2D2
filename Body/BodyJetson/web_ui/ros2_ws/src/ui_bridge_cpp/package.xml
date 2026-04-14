@@ -15,6 +15,9 @@
   <depend>sensor_msgs</depend>
   <depend>tcp_msg</depend>
   <depend>vision_msgs</depend>
+  <depend>serial_msg</depend>
+  <depend>rclcpp_action</depend>
+  <depend>behavior_msgs</depend>
 
   <build_depend>rapidjson-dev</build_depend>
 

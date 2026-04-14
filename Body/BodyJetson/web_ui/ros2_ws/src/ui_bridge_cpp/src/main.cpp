@@ -3,6 +3,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include <chrono>
 #include <thread>
 
 int main(int argc, char *argv[]) {
@@ -17,8 +18,21 @@ int main(int argc, char *argv[]) {
     node->set_broadcast(
         [&http_server](const std::string &msg) { http_server.broadcast(msg); });
 
+    http_server.set_command_handler(
+        [&node](const std::string &kind, const std::string &body,
+                std::function<void(const std::string &)> respond) {
+            node->push_command({kind, body, std::move(respond)});
+        });
+
     rclcpp::on_shutdown([&http_server]() { http_server.shutdown(); });
-    std::thread ros_thread([&node]() { rclcpp::spin(node); });
+
+    std::thread ros_thread([&node]() {
+        while (rclcpp::ok()) {
+            rclcpp::spin_some(node);
+            node->process_commands();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    });
     http_server.run(node->get_port());
 
     rclcpp::shutdown();

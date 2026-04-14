@@ -27,6 +27,11 @@ public:
     void set_image_source(
         std::function<sensor_msgs::msg::CompressedImage::ConstSharedPtr()> fn);
 
+    using CommandHandler = std::function<void(
+        const std::string &kind, const std::string &body,
+        std::function<void(const std::string &)> respond)>;
+    void set_command_handler(CommandHandler handler);
+
 private:
     std::string doc_root_;
     rclcpp::Logger logger_;
@@ -38,8 +43,11 @@ private:
     JpegGenerator jpeg_generator_;
 #endif
     std::set<uWS::HttpResponse<false> *> mjpeg_clients_;
+    std::set<uWS::HttpResponse<false> *> mjpeg_backpressure_;
     struct us_timer_t *mjpeg_timer_ = nullptr;
+    CommandHandler command_handler_;
 
+    void setup_post_routes();
     void setup_mjpeg_timer();
     void serve_static_file(uWS::HttpResponse<false> *res,
                            uWS::HttpRequest *req);
