@@ -152,3 +152,21 @@ services:
 
       # Reuse custom message packages from central_comm (single source of truth)
       - ./central_comm/ros2_ws/src/serial_msg:/home/ros/ros2_ws/src/serial_msg:ro
+
+  micro_ros_agent:
+    user: root
+    build:
+      context: ./micro-ros-agent
+      dockerfile: Dockerfile
+    image: bodyjetson/micro_ros_agent:latest
+    container_name: micro_ros_agent
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      - ROS_DOMAIN_ID=0
+      - ROS_LOCALHOST_ONLY=0
+      - RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+      - CYCLONEDDS_URI=file:///etc/cyclonedds/cyclonedds.xml
+    volumes:
+      - ./ros_network/cyclonedds.xml:/etc/cyclonedds/cyclonedds.xml:ro
+    command: udp4 -p 8888 -v6
