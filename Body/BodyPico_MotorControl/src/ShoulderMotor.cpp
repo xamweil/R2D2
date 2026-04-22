@@ -1,37 +1,57 @@
 #include "ShoulderMotor.h"
 
 ShoulderMotor::ShoulderMotor(uint8_t enablePin,
-                             uint8_t pulsePin,
-                             uint8_t directionPin,
-                             int32_t stepsPerRev,
-                             MPUData& bodyMpu,
-                             MPUData& legMpu,
-                             int16_t minDeltaZ,
-                             int16_t maxDeltaZ,
-                             uint64_t maxMpuAgeMs)
+                            uint8_t pulsePin,
+                            uint8_t directionPin,
+                            int32_t stepsPerRev,
+                            MPUData& bodyMpu,
+                            MPUData& legMpu,
+                            float minRelativeAngleDeg,
+                            float maxRelativeAngleDeg,
+                            uint64_t maxMpuAgeMs)
     : MotorBase(enablePin, pulsePin, directionPin, stepsPerRev, 10.0f),
       _bodyMpu(bodyMpu),
       _legMpu(legMpu),
-      _minDeltaZ(minDeltaZ),
-      _maxDeltaZ(maxDeltaZ),
+      _minRelativeAngleDeg(minRelativeAngleDeg),
+      _maxRelativeAngleDeg(maxRelativeAngleDeg),
       _maxMpuAgeMs(maxMpuAgeMs) {}
 
 void ShoulderMotor::setup() {
     _setupBase();
 }
 
-bool ShoulderMotor::_motionAllowed() {
-    if (_bodyMpu.getAge() > _maxMpuAgeMs) return false;
-    if (_legMpu.getAge() > _maxMpuAgeMs) return false;
+float ShoulderMotor::_computeRelativeAngleDeg() const {
+    const float by = static_cast<float>(_bodyMpu.data.accel_y);
+    const float bz = static_cast<float>(_bodyMpu.data.accel_z);
 
-    int32_t deltaZ =
-        static_cast<int32_t>(_bodyMpu.data.accel_z) -
-        static_cast<int32_t>(_legMpu.data.accel_z);
+    const float ly = static_cast<float>(_legMpu.data.accel_y);
+    const float lz = static_cast<float>(_legMpu.data.accel_z);
 
-    if (deltaZ < _minDeltaZ) return false;
-    if (deltaZ > _maxDeltaZ) return false;
+    const float bodyNorm = sqrtf(by * by + bz * bz);
+    const float legNorm  = sqrtf(ly * ly + lz * lz);
 
+    if (bodyNorm <= 1e-6f || legNorm <= 1e-6f) {
+        return 180.0f;
+    }
+
+    const float dot = by * ly + bz * lz;
+    const float det = by * lz - bz * ly;
+
+    return atan2f(det, dot) * 180.0f / PI;
+}
+
+bool ShoulderMotor::_imuDataValid() const {
+    if (_bodyMpu.data.t == 0) return false;
+    if (_legMpu.data.t == 0) return false;
     return true;
+}
+
+bool ShoulderMotor::_motionAllowed() {
+    if (!_imuDataValid()) return false;
+
+    const float angleDeg = _computeRelativeAngleDeg();
+    return angleDeg >= _minRelativeAngleDeg &&
+           angleDeg <= _maxRelativeAngleDeg;
 }
 
 void ShoulderMotor::update() {

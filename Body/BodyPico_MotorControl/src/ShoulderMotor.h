@@ -7,14 +7,14 @@
 class ShoulderMotor : public MotorBase {
 public:
     ShoulderMotor(uint8_t enablePin,
-                  uint8_t pulsePin,
-                  uint8_t directionPin,
-                  int32_t stepsPerRev,
-                  MPUData& bodyMpu,
-                  MPUData& legMpu,
-                  int16_t minDeltaZ,
-                  int16_t maxDeltaZ,
-                  uint64_t maxMpuAgeMs = 100);
+                uint8_t pulsePin,
+                uint8_t directionPin,
+                int32_t stepsPerRev,
+                MPUData& bodyMpu,
+                MPUData& legMpu,
+                float minRelativeAngleDeg,
+                float maxRelativeAngleDeg,
+                uint64_t maxMpuAgeMs = 100);
 
     void setup() override;
     void update() override;
@@ -23,13 +23,15 @@ private:
     bool _motionAllowed();
     void _updateAngleControl();
 
-private:
+    float _computeRelativeAngleDeg() const;
+    bool _imuDataValid() const;
+
     MPUData& _bodyMpu;
     MPUData& _legMpu;
 
-    int16_t _minDeltaZ;
-    int16_t _maxDeltaZ;
-    uint64_t _maxMpuAgeMs;
+    float _minRelativeAngleDeg;
+    float _maxRelativeAngleDeg;
+    uint64_t _maxMpuAgeMs; // not in use yet, for later sanity checks. 
 
     bool _correctionMode = false;
     float _angleTolerance = 1.0f;

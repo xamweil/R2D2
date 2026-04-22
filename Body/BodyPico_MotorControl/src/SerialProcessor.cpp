@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <cstring>
+
 // ============================================================================
 // MOTOR PIN MAP (RP2040 Pico)
 //
@@ -25,92 +26,139 @@
 // - STEP pins must support PWM
 // - DIR pins are standard GPIO
 // ============================================================================
+
 SerialProcessor::SerialProcessor()
-    : motors_{ 
-          HeadMotor(3, 7, 20, 200 * 8),  // head
-          ShoulderMotor(4, 8, 19, 200),  // shoulder_l
-          ShoulderMotor(4, 9, 18, 200),  // shoulder_r
-          HeadMotor(2, 6, 21, 200),  // mid
-      } {}
+    : imus_{},
+      motors_{
+          HeadMotor(2, 6, 21, 200),                              // middleLeg (index 0)
+          HeadMotor(3, 7, 20, 200 * 8),                          // head      (index 1)
+          ShoulderMotor(4, 8, 19, 200, imus_[IMU_BODY], imus_[IMU_LEG_L_LEG], 35, -15), // left
+          ShoulderMotor(4, 9, 18, 200, imus_[IMU_BODY], imus_[IMU_LEG_R_LEG], 35, -15)  // right
+      },
+      motor_ptrs_{
+          &motors_.middleLeg,
+          &motors_.head,
+          &motors_.shoulderLeft,
+          &motors_.shoulderRight
+      }
+{
+}
 
 void SerialProcessor::setup() {
-
     for (size_t i = 0; i < MOTOR_COUNT; ++i) {
-        motors_[i].setup();
-        motors_[i].setEnabled(false);
+        motor_ptrs_[i]->setup();
+        motor_ptrs_[i]->setEnabled(false);
     }
 
-    // only head motor active
-    motors_[1].setEnabled(true);
-    motors_[1].homing();
+    // Only head motor active for now
+    if (motor_allowed_[1]) {
+        motors_.head.setEnabled(true);
+        motors_.head.homing();
+    }
+
+    _resetParser();
+}
+
+void SerialProcessor::_resetParser() {
+    index_ = 0;
+    expected_size_ = 0;
+    active_sof_ = 0;
 }
 
 void SerialProcessor::process() {
     while (Serial.available() > 0) {
-        uint8_t b = (uint8_t)Serial.read();
+        const uint8_t b = static_cast<uint8_t>(Serial.read());
 
-        if (index_ == 0) {
-            if (b != 0xAA) {
-                continue; // wait for SOF
+        // Waiting for SOF
+        if (active_sof_ == 0) {
+            if (b == MOTOR_SOF) {
+                active_sof_ = MOTOR_SOF;
+                expected_size_ = MOTOR_FRAME_SIZE;
+                index_ = 0;
+            } else if (b == IMU_SOF) {
+                active_sof_ = IMU_SOF;
+                expected_size_ = IMU_FRAME_SIZE;
+                index_ = 0;
+            } else {
+                // Ignore junk until a valid SOF arrives
             }
-            index_ = 1;
             continue;
         }
 
-        buffer_[index_ - 1] = b; // payload starts after SOF
-        ++index_;
+        // Collect payload bytes
+        if (index_ < buffer_.size()) {
+            buffer_[index_] = b;
+            ++index_;
+        } else {
+            // Should never happen, but recover cleanly
+            _resetParser();
+            continue;
+        }
 
-        if (index_ == FRAME_SIZE + 1) {
-            _handleFrame();
-            index_ = 0;
+        // Frame complete
+        if (index_ == expected_size_) {
+            if (active_sof_ == MOTOR_SOF) {
+                _handleMotorFrame();
+            } else if (active_sof_ == IMU_SOF) {
+                _handleImuFrame();
+            }
+
+            _resetParser();
         }
     }
 }
 
-void SerialProcessor::updateMotors()
-{
-    for (size_t i = 0; i < MOTOR_COUNT; ++i)
-    {
-        if (!motor_allowed_[i])
-        {
-            motors_[i].setEnabled(false);
-            motors_[i].setTargetVelocity(0);
-            motors_[i].setAngleMode(false);
-        }
-
-        motors_[i].update();
-    }
-}
-
-void SerialProcessor::_handleFrame() {
-    uint32_t control =
-        (uint32_t)buffer_[0] |
-        ((uint32_t)buffer_[1] << 8) |
-        ((uint32_t)buffer_[2] << 16) |
-        ((uint32_t)buffer_[3] << 24);
-
+void SerialProcessor::updateMotors() {
     for (size_t i = 0; i < MOTOR_COUNT; ++i) {
-        HeadMotor &motor = motors_[i];
-
-        // Safety lock for disabled development motors
         if (!motor_allowed_[i]) {
-            motor.setEnabled(false);
-            motor.setTargetVelocity(0);
-            motor.setAngleMode(false);
+            _stopMotorForSafety(i);
+        }
+
+        motor_ptrs_[i]->update();
+    }
+}
+
+void SerialProcessor::_stopMotorForSafety(size_t motorIndex) {
+    MotorBase* motor = motor_ptrs_[motorIndex];
+    motor->setEnabled(false);
+    motor->setTargetVelocity(0);
+
+    // Only HeadMotor has angle/velocity mode switching
+    if (motorIndex == 0) {
+        motors_.middleLeg.setAngleMode(false);
+    } else if (motorIndex == 1) {
+        motors_.head.setAngleMode(false);
+    }
+}
+
+void SerialProcessor::_handleMotorFrame() {
+    const uint32_t control =
+        static_cast<uint32_t>(buffer_[0]) |
+        (static_cast<uint32_t>(buffer_[1]) << 8) |
+        (static_cast<uint32_t>(buffer_[2]) << 16) |
+        (static_cast<uint32_t>(buffer_[3]) << 24);
+
+    // Only first 4 motors are handled on the Pico
+    for (size_t i = 0; i < MOTOR_COUNT; ++i) {
+        MotorBase* motor = motor_ptrs_[i];
+
+        // Safety lock for development-disabled motors
+        if (!motor_allowed_[i]) {
+            _stopMotorForSafety(i);
             continue;
         }
 
-        uint32_t bits = (control >> (i * 4)) & 0x0F;
+        const uint32_t bits = (control >> (i * 4)) & 0x0F;
 
-        bool enable       = (bits & (1U << 0)) != 0;
-        bool direction    = (bits & (1U << 1)) != 0;
-        bool angle_set    = (bits & (1U << 2)) != 0;
-        bool velocity_set = (bits & (1U << 3)) != 0;
+        const bool enable       = (bits & (1U << 0)) != 0;
+        const bool direction    = (bits & (1U << 1)) != 0;
+        const bool angle_set    = (bits & (1U << 2)) != 0;
+        const bool velocity_set = (bits & (1U << 3)) != 0;
 
-        motor.setEnabled(enable);
-        motor.setDirection(direction);
+        motor->setEnabled(enable);
+        motor->setDirection(direction);
 
-        size_t off = 4 + (i * 5);
+        const size_t off = 4 + (i * 5);
 
         float angle = 0.0f;
         std::memcpy(&angle, &buffer_[off], sizeof(float));
@@ -120,26 +168,75 @@ void SerialProcessor::_handleFrame() {
             velocity = 100;
         }
 
-        // angle command -> angle mode, velocity optional (default 50)
-        if (angle_set) {
-            motor.setAngleMode(true);
-            motor.setTargetAngle(angle);
+        // Mid + head are HeadMotor and support angle mode / velocity mode
+        if (i == 0 || i == 1) {
+            HeadMotor* hm = (i == 0) ? &motors_.middleLeg : &motors_.head;
 
-            if (velocity_set) {
-                motor.setTargetVelocity(velocity);   // Case 2
+            if (angle_set) {
+                hm->setAngleMode(true);
+                hm->setTargetAngle(angle);
+
+                if (velocity_set) {
+                    hm->setTargetVelocity(velocity);
+                } else {
+                    hm->setTargetVelocity(50);
+                }
+            } else if (velocity_set) {
+                hm->setAngleMode(false);
+                hm->setTargetVelocity(velocity);
             } else {
-                motor.setTargetVelocity(50);         // Case 1 default
+                hm->setAngleMode(false);
+                hm->setTargetVelocity(0);
             }
         }
-        // velocity command only -> starts moving with passed velocity
-        else if (velocity_set) {
-            motor.setAngleMode(false);
-            motor.setTargetVelocity(velocity);
-        }
-        // Makes no sense, so just stop the motor
+        // Shoulders are always angle-controlled
         else {
-            motor.setAngleMode(false);
-            motor.setTargetVelocity(0);
+            ShoulderMotor* sm = (i == 2) ? &motors_.shoulderLeft
+                                         : &motors_.shoulderRight;
+
+            if (angle_set) {
+                sm->setTargetAngle(angle);
+
+                if (velocity_set) {
+                    sm->setTargetVelocity(velocity);
+                } else {
+                    sm->setTargetVelocity(50);
+                }
+            } else {
+                // velocity-only makes no sense for shoulders
+                sm->setTargetVelocity(0);
+            }
         }
+    }
+}
+
+void SerialProcessor::_handleImuFrame() {
+    // Frame layout:
+    // 6 IMUs, each 10 bytes:
+    // int16 ax, int16 ay, int16 az, uint32 ts_ms
+
+    for (size_t i = 0; i < IMU_COUNT; ++i) {
+        const size_t off = i * 10;
+
+        const int16_t accel_x = static_cast<int16_t>(
+            static_cast<uint16_t>(buffer_[off + 0]) |
+            (static_cast<uint16_t>(buffer_[off + 1]) << 8));
+
+        const int16_t accel_y = static_cast<int16_t>(
+            static_cast<uint16_t>(buffer_[off + 2]) |
+            (static_cast<uint16_t>(buffer_[off + 3]) << 8));
+
+        const int16_t accel_z = static_cast<int16_t>(
+            static_cast<uint16_t>(buffer_[off + 4]) |
+            (static_cast<uint16_t>(buffer_[off + 5]) << 8));
+
+        const uint32_t ts_ms =
+            static_cast<uint32_t>(buffer_[off + 6]) |
+            (static_cast<uint32_t>(buffer_[off + 7]) << 8) |
+            (static_cast<uint32_t>(buffer_[off + 8]) << 16) |
+            (static_cast<uint32_t>(buffer_[off + 9]) << 24);
+
+        // ts_ms == 0 means invalid / missing / stale
+        imus_[i].setData(accel_x, accel_y, accel_z, ts_ms);
     }
 }

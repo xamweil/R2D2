@@ -16,13 +16,52 @@ MotorControl::MotorControl() : Node("motor_control") {
         RCLCPP_INFO(this->get_logger(), "Serial: connected to pico");
     }
 
-    // TODO: is this the right queue size?
     constexpr int queue_size = 10;
+
     cmd_sub_ = this->create_subscription<serial_msg::msg::MotorCommand>(
         "/motor_command", queue_size,
         [this](const serial_msg::msg::MotorCommand &msg) {
             this->cmd_callback(msg);
         });
+
+    head_mpu_sub_ = this->create_subscription<tcp_msg::msg::MPU6500Sample>(
+        "/Head/mpu", queue_size,
+        [this](const tcp_msg::msg::MPU6500Sample &msg) {
+            this->imu_callback(imu_protocol::IMU_head, msg);
+        });
+
+    body_mpu_sub_ = this->create_subscription<tcp_msg::msg::MPU6500Sample>(
+        "/Body/mpu", queue_size,
+        [this](const tcp_msg::msg::MPU6500Sample &msg) {
+            this->imu_callback(imu_protocol::IMU_body, msg);
+        });
+
+    leg_l_foot_sub_ = this->create_subscription<tcp_msg::msg::MPU6500Sample>(
+        "/leg_l/imu/foot", queue_size,
+        [this](const tcp_msg::msg::MPU6500Sample &msg) {
+            this->imu_callback(imu_protocol::IMU_leg_l_foot, msg);
+        });
+
+    leg_l_leg_sub_ = this->create_subscription<tcp_msg::msg::MPU6500Sample>(
+        "/leg_l/imu/leg", queue_size,
+        [this](const tcp_msg::msg::MPU6500Sample &msg) {
+            this->imu_callback(imu_protocol::IMU_leg_l_leg, msg);
+        });
+
+    leg_r_foot_sub_ = this->create_subscription<tcp_msg::msg::MPU6500Sample>(
+        "/leg_r/imu/foot", queue_size,
+        [this](const tcp_msg::msg::MPU6500Sample &msg) {
+            this->imu_callback(imu_protocol::IMU_leg_r_foot, msg);
+        });
+
+    leg_r_leg_sub_ = this->create_subscription<tcp_msg::msg::MPU6500Sample>(
+        "/leg_r/imu/leg", queue_size,
+        [this](const tcp_msg::msg::MPU6500Sample &msg) {
+            this->imu_callback(imu_protocol::IMU_leg_r_leg, msg);
+        });
+
+    imu_timer_ = this->create_wall_timer(
+        IMU_SEND_PERIOD_MS, [this]() { this->send_imu_frame(); });
 }
 
 void MotorControl::cmd_callback(const serial_msg::msg::MotorCommand &msg) {
@@ -34,7 +73,7 @@ void MotorControl::cmd_callback(const serial_msg::msg::MotorCommand &msg) {
             continue;
         }
 
-        auto &m = frame_.motors[id];
+        auto &m = motor_frame_.motors[id];
         m.enable = msg.enable[i];
         m.direction = msg.direction[i];
         m.angle_set = msg.angle_set[i];
@@ -46,14 +85,18 @@ void MotorControl::cmd_callback(const serial_msg::msg::MotorCommand &msg) {
     schedule_send();
 }
 
-// Send immediately on the first message, then enforce a minimum interval
-// (SEND_COOLDOWN) between sends. Messages arriving during cooldown update
-// frame_ but the send is deferred until the timer fires.
+void MotorControl::imu_callback(imu_protocol::ImuIndex idx,
+                                const tcp_msg::msg::MPU6500Sample &msg) {
+    auto &slot = imu_cache_[static_cast<size_t>(idx)];
+    slot.msg = msg;
+    slot.last_rx_time = this->now();
+    slot.received = true;
+}
+
 void MotorControl::schedule_send() {
     dirty_ = true;
     if (!cooldown_timer_) {
-        // No cooldown active: send right away and start the cooldown timer.
-        send_frame();
+        send_motor_frame();
         cooldown_timer_ = this->create_wall_timer(
             SEND_COOLDOWN_MS, [this]() { this->on_cooldown_expire(); });
     }
@@ -61,43 +104,84 @@ void MotorControl::schedule_send() {
 
 void MotorControl::on_cooldown_expire() {
     if (dirty_) {
-        // New data arrived during cooldown: send it and keep the timer
-        // running so we don't send again too soon.
-        send_frame();
+        send_motor_frame();
     } else {
-        // Nothing changed since the last send: stop the timer so the next
-        // message triggers an immediate send via schedule_send().
         cooldown_timer_.reset();
     }
 }
 
-void MotorControl::send_frame() {
+void MotorControl::refresh_imu_frame() {
+    const auto now = this->now();
+
+    for (size_t i = 0; i < imu_cache_.size(); ++i) {
+        auto &dst = imu_frame_.imus[i];
+        const auto &src = imu_cache_[i];
+
+        if (!src.received) {
+            dst = {};
+            continue;
+        }
+
+        const auto age = now - src.last_rx_time;
+        const bool stale = age > rclcpp::Duration(IMU_STALE_AFTER_MS);
+
+        dst.accel_x = src.msg.accel[0];
+        dst.accel_y = src.msg.accel[1];
+        dst.accel_z = src.msg.accel[2];
+        dst.ts_ms = stale ? 0U : src.msg.ts_ms;
+    }
+}
+
+void MotorControl::send_motor_frame() {
     dirty_ = false;
 
-    if (!serial_.is_connected())
-        return;
+    if (!serial_.is_connected()) return;
 
-    buf_[0] = 0xAA;
-    if (!frame_.serialize(&buf_[1], buf_.size() - 1)) {
-        RCLCPP_WARN(this->get_logger(), "Failed to serialize frame");
+    motor_buf_[0] = 0xAA;
+    if (!motor_frame_.serialize(&motor_buf_[1], motor_buf_.size() - 1)) {
+        RCLCPP_WARN(this->get_logger(), "Failed to serialize motor frame");
         return;
     }
 
-    if (!serial_.write_data(buf_.data(), buf_.size())) {
+    if (!serial_.write_data(motor_buf_.data(), motor_buf_.size())) {
         RCLCPP_WARN(this->get_logger(),
-                    "Serial write failed, starting reconnect");
+                    "Serial motor write failed, starting reconnect");
         serial_.disconnect();
         if (!reconnect_timer_) {
-            reconnect_timer_ =
-                this->create_wall_timer(RECONNECT_INTERVAL_S, [this]() {
-                    this->try_serial_reconnect();
-                });
+            reconnect_timer_ = this->create_wall_timer(
+                RECONNECT_INTERVAL_S, [this]() { this->try_serial_reconnect(); });
         }
         return;
     }
 
-    RCLCPP_DEBUG(this->get_logger(), "Frame sent:\n%s",
-                 frame_.to_string().c_str());
+    RCLCPP_DEBUG(this->get_logger(), "Motor frame sent:\n%s",
+                 motor_frame_.to_string().c_str());
+}
+
+void MotorControl::send_imu_frame() {
+    if (!serial_.is_connected()) return;
+
+    refresh_imu_frame();
+
+    imu_buf_[0] = imu_protocol::SOF;
+    if (!imu_frame_.serialize(&imu_buf_[1], imu_buf_.size() - 1)) {
+        RCLCPP_WARN(this->get_logger(), "Failed to serialize IMU frame");
+        return;
+    }
+
+    if (!serial_.write_data(imu_buf_.data(), imu_buf_.size())) {
+        RCLCPP_WARN(this->get_logger(),
+                    "Serial IMU write failed, starting reconnect");
+        serial_.disconnect();
+        if (!reconnect_timer_) {
+            reconnect_timer_ = this->create_wall_timer(
+                RECONNECT_INTERVAL_S, [this]() { this->try_serial_reconnect(); });
+        }
+        return;
+    }
+
+    RCLCPP_DEBUG(this->get_logger(), "IMU frame sent:\n%s",
+                 imu_frame_.to_string().c_str());
 }
 
 void MotorControl::try_serial_reconnect() {
