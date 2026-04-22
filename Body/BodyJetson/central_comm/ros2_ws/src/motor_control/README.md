@@ -4,9 +4,15 @@ ROS2 node that receives motor commands and serializes them into a binary protoco
 
 ## Subscribed topics
 
-| Topic           | Type                            | Description            |
-|-----------------|---------------------------------|------------------------|
+| Topic             | Type                      | Description              |
+|------------------|---------------------------|--------------------------|
 | `/motor_command` | `serial_msg/msg/MotorCommand` | Motor command messages |
+| `/Head/mpu`      | `tcp_msg/msg/MPU6500Sample`   | Head IMU sample        |
+| `/Body/mpu`      | `tcp_msg/msg/MPU6500Sample`   | Body IMU sample        |
+| `/leg_l/imu/foot`| `tcp_msg/msg/MPU6500Sample`   | Left foot IMU sample   |
+| `/leg_l/imu/leg` | `tcp_msg/msg/MPU6500Sample`   | Left leg IMU sample    |
+| `/leg_r/imu/foot`| `tcp_msg/msg/MPU6500Sample`   | Right foot IMU sample  |
+| `/leg_r/imu/leg` | `tcp_msg/msg/MPU6500Sample`   | Right leg IMU sample   |
 
 ## Message format
 
@@ -20,7 +26,7 @@ ROS2 node that receives motor commands and serializes them into a binary protoco
 | `angle_set`  | `bool[<=6]`   | Apply `angle` value                |
 | `velocity_set` | `bool[<=6]` | Apply `velocity` value             |
 | `angle`      | `float32[<=6]`| Target angle in degrees            |
-| `velocity`   | `uint8[<=6]`  | Target velocity (0–255)            |
+| `velocity`   | `uint8[<=6]`  | Target velocity (0–100)            |
 
 ### Motor indices
 
@@ -30,14 +36,13 @@ ROS2 node that receives motor commands and serializes them into a binary protoco
 | 1     | head         |
 | 2     | left_shoulder|
 | 3     | right_shoulder|
-| 4     | left_foot    |
-| 5     | right_foot   |
 
 ## Running
 
 ```bash
 ros2 launch motor_control launch.py
 ```
+The node sends motor commands on change and forwards cached IMU data periodically to the Pico.
 
 ## Sending commands
 
@@ -55,10 +60,39 @@ ros2 topic pub --once /motor_command serial_msg/msg/MotorCommand \
 
 ## Wire protocol
 
-Frames are sent over serial at 50 ms intervals (timer) or immediately on receipt of a command. Each frame is 35 bytes:
+Two frame types are sent over serial:
 
+### 1) Motor command frame
+
+Sent immediately on command updates, with a minimum spacing of 50 ms.
 ```
-byte 0:     0xAA  (start-of-frame)
-bytes 1–4:  control word (u32 LE) — 4 bits per motor: enable | direction | angle_set | velocity_set
+byte 0: 0xAA (start-of-frame)
+bytes 1–4: control word (u32 LE) — 4 bits per motor: enable | direction | angle_set | velocity_set
 bytes 5–34: 5 bytes per motor × 6 motors — float32 LE angle + uint8 velocity
 ```
+
+### 2) IMU frame
+
+Sent periodically at ~40 Hz.
+
+Order of IMUs:
+1. head
+2. body
+3. left foot
+4. left leg
+5. right foot
+6. right leg
+
+Each IMU contributes:
+
+- `accel_x` (`int16`)
+- `accel_y` (`int16`)
+- `accel_z` (`int16`)
+- `ts_ms` (`uint32`)
+
+```
+byte 0: 0xAB (start-of-frame)
+bytes 1–60: 6 IMUs × 10 bytes each
+```
+
+If an IMU is missing or stale, its forwarded `ts_ms` is set to `0`.
