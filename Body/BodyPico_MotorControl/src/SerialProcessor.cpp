@@ -10,8 +10,6 @@
 // 1 : M_head
 // 2 : M_shoulder_l
 // 3 : M_shoulder_r
-// 4 : M_drive_l
-// 5 : M_drive_r
 //
 // Pin Layout
 //
@@ -20,8 +18,6 @@
 // M_head         GP3      GP7           GP20
 // M_shoulder_l   GP4      GP8           GP19
 // M_shoulder_r   GP4      GP9           GP18
-// M_drive_l      GP5      GP10          GP17
-// M_drive_r      GP5      GP11          GP16
 //
 // Notes
 // - ENABLE pins are shared per motor group
@@ -30,13 +26,11 @@
 // - DIR pins are standard GPIO
 // ============================================================================
 SerialProcessor::SerialProcessor()
-    : motors_{
-          HeadMotor(2, 6, 21, 200),  // mid
+    : motors_{ 
           HeadMotor(3, 7, 20, 200 * 8),  // head
-          HeadMotor(4, 8, 19, 200),  // shoulder_l
-          HeadMotor(4, 9, 18, 200),  // shoulder_r
-          HeadMotor(5, 10, 17, 200), // drive_l
-          HeadMotor(5, 11, 16, 200)  // drive_r
+          ShoulderMotor(4, 8, 19, 200),  // shoulder_l
+          ShoulderMotor(4, 9, 18, 200),  // shoulder_r
+          HeadMotor(2, 6, 21, 200),  // mid
       } {}
 
 void SerialProcessor::setup() {
