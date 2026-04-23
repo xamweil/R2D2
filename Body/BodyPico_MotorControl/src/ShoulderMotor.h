@@ -18,6 +18,8 @@ public:
 
     void setup() override;
     void update() override;
+    float getMinAngle() const;
+    float getMaxAngle() const;
 
 private:
     bool _motionAllowed();

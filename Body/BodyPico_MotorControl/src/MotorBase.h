@@ -52,7 +52,7 @@ protected:
     uint8_t _pulsePin;
     uint8_t _directionPin;
 
-    RP2040_PWM pwm;
+    RP2040_PWM* pwm;
 
     int32_t _stepsPerRev;
     float _transmissionRatio;

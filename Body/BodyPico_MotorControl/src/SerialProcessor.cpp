@@ -32,8 +32,8 @@ SerialProcessor::SerialProcessor()
       motors_{
           HeadMotor(2, 6, 21, 200),                              // middleLeg (index 0)
           HeadMotor(3, 7, 20, 200 * 8),                          // head      (index 1)
-          ShoulderMotor(4, 8, 19, 200, imus_[IMU_BODY], imus_[IMU_LEG_L_LEG], 35, -15), // left
-          ShoulderMotor(4, 9, 18, 200, imus_[IMU_BODY], imus_[IMU_LEG_R_LEG], 35, -15)  // right
+          ShoulderMotor(4, 8, 19, 200*16, imus_[IMU_BODY], imus_[IMU_LEG_L_LEG], -15, 35), // left
+          ShoulderMotor(5, 9, 18, 200*16, imus_[IMU_BODY], imus_[IMU_LEG_R_LEG], -15, 35)  // right
       },
       motor_ptrs_{
           &motors_.middleLeg,
@@ -49,6 +49,10 @@ void SerialProcessor::setup() {
         motor_ptrs_[i]->setup();
         motor_ptrs_[i]->setEnabled(false);
     }
+
+    imus_[IMU_BODY].setData(0, 0, 16384, 1);
+    imus_[IMU_LEG_L_LEG].setData(0, 0, 16384, 1);
+    imus_[IMU_LEG_R_LEG].setData(0, 0, 16384, 1);
 
     // Only head motor active for now
     if (motor_allowed_[1]) {
@@ -138,7 +142,7 @@ void SerialProcessor::_handleMotorFrame() {
         (static_cast<uint32_t>(buffer_[2]) << 16) |
         (static_cast<uint32_t>(buffer_[3]) << 24);
 
-    // Only first 4 motors are handled on the Pico
+    // 4 motors are handled on the Pico
     for (size_t i = 0; i < MOTOR_COUNT; ++i) {
         MotorBase* motor = motor_ptrs_[i];
 
@@ -168,9 +172,9 @@ void SerialProcessor::_handleMotorFrame() {
             velocity = 100;
         }
 
-        // Mid + head are HeadMotor and support angle mode / velocity mode
-        if (i == 0 || i == 1) {
-            HeadMotor* hm = (i == 0) ? &motors_.middleLeg : &motors_.head;
+        // HeadMotor supports angle mode / velocity mode
+        if (i == 1) {
+            HeadMotor* hm = &motors_.head;
 
             if (angle_set) {
                 hm->setAngleMode(true);
@@ -190,12 +194,14 @@ void SerialProcessor::_handleMotorFrame() {
             }
         }
         // Shoulders are always angle-controlled
-        else {
+        else if (i == 2 || i==3) {
             ShoulderMotor* sm = (i == 2) ? &motors_.shoulderLeft
                                          : &motors_.shoulderRight;
 
             if (angle_set) {
-                sm->setTargetAngle(angle);
+                if (angle<=sm->getMinAngle()) angle = sm->getMinAngle();
+                if (angle>=sm->getMaxAngle()) angle = sm->getMaxAngle();
+                sm->setTargetAngle(-angle);
 
                 if (velocity_set) {
                     sm->setTargetVelocity(velocity);

@@ -8,7 +8,7 @@ MotorBase::MotorBase(uint8_t enablePin,
     : _enablePin(enablePin),
       _pulsePin(pulsePin),
       _directionPin(directionPin),
-      pwm(pulsePin, 100.0f, 0.0f, false),
+      pwm(new RP2040_PWM(pulsePin, 100.0f, 0.0f, false)),
       _stepsPerRev(stepsPerRev),
       _transmissionRatio(transmissionRatio),
       _lastUpdate(time_us_64()) {}
@@ -63,10 +63,10 @@ void MotorBase::_applyMotorState() {
     digitalWrite(_directionPin, _direction ? HIGH : LOW);
 
     if (!_enabled || _frequency == 0) {
-        pwm.setPWM(_pulsePin, 1000.0f, 0.0f);
+        pwm->setPWM(_pulsePin, 1000.0f, 0.0f);
         digitalWrite(_enablePin, HIGH);   // disabled
     } else {
-        pwm.setPWM(_pulsePin, static_cast<float>(_frequency), 50.0f);
+        pwm->setPWM(_pulsePin, static_cast<float>(_frequency), 50.0f);
         digitalWrite(_enablePin, LOW);    // enabled
     }
 

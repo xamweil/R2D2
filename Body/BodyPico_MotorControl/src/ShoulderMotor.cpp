@@ -20,6 +20,14 @@ void ShoulderMotor::setup() {
     _setupBase();
 }
 
+float ShoulderMotor::getMinAngle() const {
+    return _minRelativeAngleDeg;
+}
+
+float ShoulderMotor::getMaxAngle() const {
+    return _maxRelativeAngleDeg;
+}
+
 float ShoulderMotor::_computeRelativeAngleDeg() const {
     const float by = static_cast<float>(_bodyMpu.data.accel_y);
     const float bz = static_cast<float>(_bodyMpu.data.accel_z);
@@ -41,6 +49,7 @@ float ShoulderMotor::_computeRelativeAngleDeg() const {
 }
 
 bool ShoulderMotor::_imuDataValid() const {
+    return true;
     if (_bodyMpu.data.t == 0) return false;
     if (_legMpu.data.t == 0) return false;
     return true;
