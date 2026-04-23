@@ -1,6 +1,7 @@
 #pragma once
 
 #include "motor_protocol.h"
+#include "imu_protocol.h"
 #include "SerialPort.h"
 
 #include <rclcpp/executors.hpp>
@@ -27,11 +28,13 @@ private:
         bool received = false;
     };
 
-    std::array<uint8_t, 1 + motor_protocol::FRAME_SIZE_BYTES> buf_{}; // 1 byte SOF + frame data
+    std::array<uint8_t, 1 + motor_protocol::FRAME_SIZE_BYTES> motor_buf_{};
     std::array<uint8_t, 1 + imu_protocol::FRAME_SIZE_BYTES> imu_buf_{};
 
-    motor_protocol::Frame frame_{};
+    motor_protocol::Frame motor_frame_{};
     imu_protocol::Frame imu_frame_{};
+
+    std::array<CachedImu, imu_protocol::IMU_COUNT> imu_cache_{};
 
     bool dirty_ = false;
 

@@ -1,4 +1,5 @@
 #include "MotorControl.h"
+#include "imu_protocol.h"
 
 #include "SerialPort.h"
 
