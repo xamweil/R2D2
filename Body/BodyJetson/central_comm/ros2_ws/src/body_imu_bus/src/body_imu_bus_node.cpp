@@ -62,11 +62,21 @@ void BodyImuBusNode::setupParameters()
 void BodyImuBusNode::setupSensors()
 {
     const std::array<ImuConfig, 5> configs = {{
-        {"body",       "/Body/mpu",        "body_mpu",       5, 0x68},
-        {"leg_l_leg",  "/leg_l/imu/leg",   "leg_l_imu_leg",  0, 0x69},
-        {"leg_l_foot", "/leg_l/imu/foot",  "leg_l_imu_foot", 0, 0x68},
-        {"leg_r_leg",  "/leg_r/imu/leg",   "leg_r_imu_leg",  3, 0x69},
-        {"leg_r_foot", "/leg_r/imu/foot",  "leg_r_imu_foot", 3, 0x68},
+        {"body",       "/Body/mpu",        "body_mpu",       5, 0x68,{
+        {{1, -1, 0, 0}, {2, +1, 0, 0}, {0, -1, 0, 0}}}
+        },
+        {"leg_l_leg",  "/leg_l/imu/leg",   "leg_l_imu_leg",  0, 0x69,{
+        {{2, -1, 0, 0}, {1, +1, 0, 0}, {0, +1, 0, 0}}},
+        },
+        {"leg_l_foot", "/leg_l/imu/foot",  "leg_l_imu_foot", 0, 0x68,{
+        {{0, +1, 0, 0}, {1, +1, 0, 0}, {2, +1, 0, 0}}},
+        },
+        {"leg_r_leg",  "/leg_r/imu/leg",   "leg_r_imu_leg",  3, 0x69,{
+        {{0, +1, 0, 0}, {1, +1, 0, 0}, {2, +1, 0, 0}}},
+        },
+        {"leg_r_foot", "/leg_r/imu/foot",  "leg_r_imu_foot", 3, 0x68,{
+        {{0, +1, 0, 0}, {1, +1, 0, 0}, {2, +1, 0, 0}}},
+        },
     }};
 
     for (std::size_t i = 0; i < configs.size(); ++i) {
@@ -130,19 +140,36 @@ bool BodyImuBusNode::tryInitializeSensor(ImuRuntime & sensor)
     return true;
 }
 
+int16_t BodyImuBusNode::applyAxisTransform(const std::array<int16_t, 3> & raw, 
+    const AxisTransform & transform,
+    int16_t offset) const {
+
+    return static_cast<int16_t>(transform.sign * raw[transform.source_axis] + offset);
+}
+
 void BodyImuBusNode::publishSample(
     ImuRuntime & sensor,
-    const body_imu_bus::IMUData & data)
-{
+    const body_imu_bus::IMUData & data) {
     tcp_msg::msg::MPU6500Sample msg;
 
-    msg.accel[0] = data.accel_x;
-    msg.accel[1] = data.accel_y;
-    msg.accel[2] = data.accel_z;
+    const std::array<int16_t, 3> raw_accel = {
+        data.accel_x,
+        data.accel_y,
+        data.accel_z
+    };
 
-    msg.gyro[0] = data.gyro_x;
-    msg.gyro[1] = data.gyro_y;
-    msg.gyro[2] = data.gyro_z;
+    const std::array<int16_t, 3> raw_gyro = {
+        data.gyro_x,
+        data.gyro_y,
+        data.gyro_z
+    };
+
+    for (std::size_t i = 0; i < 3; ++i) {
+        const auto & t = sensor.config.transform[i];
+
+        msg.accel[i] = applyAxisTransform(raw_accel, t, t.accel_offset);
+        msg.gyro[i]  = applyAxisTransform(raw_gyro,  t, t.gyro_offset);
+    }
 
     auto now = this->now();
     msg.ts_ms = static_cast<uint32_t>(now.nanoseconds() / 1000000);

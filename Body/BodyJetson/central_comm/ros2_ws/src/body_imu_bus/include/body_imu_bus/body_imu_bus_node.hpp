@@ -15,12 +15,20 @@ public:
     BodyImuBusNode();
 
 private:
+    struct AxisTransform {
+        uint8_t source_axis; // 0=x, 1=y, 2=z
+        int8_t sign; // +1 or -1
+        int16_t accel_offset; // raw_count accel correction 
+        int16_t gyro_offset; // raw_count accel correction 
+    };
+
     struct ImuConfig {
         std::string name;
         std::string topic;
         std::string frame_id;
         uint8_t mux_channel;
         uint8_t i2c_address;
+        std::array<AxisTransform, 3> transform;
     };
 
     struct ImuRuntime {
@@ -34,6 +42,7 @@ private:
     void pollSensors();
     bool tryInitializeSensor(ImuRuntime & sensor);
     void publishSample(ImuRuntime & sensor, const body_imu_bus::IMUData & data);
+    int16_t applyAxisTransform(const std::array<int16_t, 3> & raw, const AxisTransform & transform, int16_t offset) const;
 
     int i2c_bus_;
     int mux_address_param_;
