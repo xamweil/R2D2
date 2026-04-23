@@ -1,6 +1,7 @@
 services:
   central_comm:
     user: root
+    working_dir: /home/ros/ros2_ws
     build:
       context: ./central_comm
       dockerfile: Dockerfile

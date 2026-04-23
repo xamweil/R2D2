@@ -1,11 +1,11 @@
-#ifndef BODY_MPU_READER_MPU6500_HPP_
-#define BODY_MPU_READER_MPU6500_HPP_
+#ifndef MPU6500_HPP_
+#define MPU6500_HPP_
 
 #include <cstddef>
 #include <string>
 #include <cstdint>
 
-namespace body_mpu_reader {
+namespace body_imu_bus {
 // MPU-6500 Register Map
 constexpr uint8_t MPU6500_ADDR = 0x68;  // Default I2C address
 
@@ -25,25 +25,25 @@ constexpr uint8_t REG_TEMP_OUT_H = 0x41;
 constexpr uint8_t REG_GYRO_XOUT_H = 0x43;
 
 // Configuration values
-constexpr uint8_t GYRO_RANGE_250DPS = 0x00;
+constexpr uint8_t GYRO_RANGE_250DPS = 0x00; // configured range: ±250 deg/s, sensitivity 131 LSB/(deg/s)
 constexpr uint8_t GYRO_RANGE_500DPS = 0x08;
 constexpr uint8_t GYRO_RANGE_1000DPS = 0x10;
 constexpr uint8_t GYRO_RANGE_2000DPS = 0x18;
 
-constexpr uint8_t ACCEL_RANGE_2G = 0x00;
+constexpr uint8_t ACCEL_RANGE_2G = 0x00;    // configured range: ±2 g, sensitivity 16384 LSB/g
 constexpr uint8_t ACCEL_RANGE_4G = 0x08;
 constexpr uint8_t ACCEL_RANGE_8G = 0x10;
 constexpr uint8_t ACCEL_RANGE_16G = 0x18;
 
 struct IMUData
 {
-  double accel_x;  // g
-  double accel_y;
-  double accel_z;
-  double gyro_x;   // dps
-  double gyro_y;
-  double gyro_z;
-  double temp_c;   // Celsius
+    int16_t accel_x;  // raw counts
+    int16_t accel_y;
+    int16_t accel_z;
+    int16_t gyro_x;   // raw counts
+    int16_t gyro_y;
+    int16_t gyro_z;
+    float temp_c;   // Celsius
 };
 
 class MPU6500 {
@@ -59,8 +59,6 @@ class MPU6500 {
         int fd_;  // File descriptor for I2C device
         int i2c_bus_;
         uint8_t address_;
-        double accel_scale_;
-        double gyro_scale_;
 
         bool open_device();
         bool write_byte(uint8_t reg, uint8_t value);

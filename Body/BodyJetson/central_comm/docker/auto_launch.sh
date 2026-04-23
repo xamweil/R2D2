@@ -13,60 +13,36 @@ fi
 # Build only if needed (first run / clean tree)
 if [ ! -f "install/setup.bash" ] || [ -z "$(ls -A build 2>/dev/null)" ]; then
   echo "[auto_launch] Building workspace (merged install, symlink)…"
-  # One build, one consistent install prefix to get custom message type ref in setup.bash:
   colcon build --merge-install \
-  --packages-select tcp_msg serial_msg xiao_bridge body_mpu_reader motor_control
+    --packages-select tcp_msg serial_msg body_imu_bus motor_control
 else
   echo "[auto_launch] Using existing build/install."
 fi
 
 source /home/ros/ros2_ws/install/setup.bash
 
-ESP_L=192.168.66.10
-ESP_R=192.168.66.11
-PORT_L=5010
-PORT_R=5011
-
-
-
 # Helper for node launch
-run_bridge() {
-  local name="$1" ip="$2" port="$3" ns="$4"
-  local logfile="${ROS_LOG_DIR}/bridge_${name}.log"
-
-  echo "[bridge:${name}] starting loop -> ${ip}:${port} ns=${ns} (log: ${logfile})"
-
-  # line-buffer stdout/stderr so logs stream
-  while true; do
-    echo "[bridge:${name}] $(date +'%F %T') starting process…"
-    # run the node; if it fails it exits and retries in 2s
-    stdbuf -oL -eL ros2 run xiao_bridge bridge_node \
-      --ros-args -p ip:=${ip} -p port:=${port} -r __ns:=${ns} \
-      >> "${logfile}" 2>&1 || true
-
-    rc=$?
-    echo "[bridge:${name}] $(date +'%F %T') exited (rc=${rc}); retrying in 2s…" | tee -a "${logfile}"
-    sleep 2
-  done
-}
-
-run_body_imu() {
+run_body_imu_bus() {
   local bus="${1:-7}"
-  local addr="${2:-0x68}"
-  local rate="${3:-50.0}"
-  local topic="${4:-Body/mpu}"
-  local logfile="${ROS_LOG_DIR}/body_mpu.log"
+  local mux_addr="${2:-0x70}"
+  local rate="${3:-50}"
+  local retry="${4:-10.0}"
+  local logfile="${ROS_LOG_DIR}/body_imu_bus.log"
 
-  echo "[body_mpu] starting loop -> i2c_bus=${bus} i2c_addr=${addr} rate=${rate}Hz topic=${topic} (log: ${logfile})"
+  echo "[body_imu_bus] starting loop -> i2c_bus=${bus} mux_addr=${mux_addr} rate=${rate}Hz retry=${retry}s (log: ${logfile})"
 
   while true; do
-    echo "[body_mpu] $(date +'%F %T') starting process…"
-    stdbuf -oL -eL ros2 run body_mpu_reader body_mpu_node \
-      --ros-args -p i2c_bus:=${bus} -p i2c_address:=${addr} -p publish_rate:=${rate} -p topic_name:=${topic} \
+    echo "[body_imu_bus] $(date +'%F %T') starting process…"
+    stdbuf -oL -eL ros2 run body_imu_bus body_imu_bus_node \
+      --ros-args \
+      -p i2c_bus:=${bus} \
+      -p mux_address:=${mux_addr} \
+      -p poll_rate_hz:=${rate} \
+      -p init_retry_interval_sec:=${retry} \
       >> "${logfile}" 2>&1 || true
 
     rc=$?
-    echo "[body_mpu] $(date +'%F %T') exited (rc=${rc}); retrying in 2s…" | tee -a "${logfile}"
+    echo "[body_imu_bus] $(date +'%F %T') exited (rc=${rc}); retrying in 2s…" | tee -a "${logfile}"
     sleep 2
   done
 }
@@ -91,15 +67,8 @@ run_motor_control() {
 pids=()
 trap 'echo "[auto_launch] signal received, stopping…"; kill "${pids[@]}" 2>/dev/null || true; wait; exit 0' INT TERM
 
-# Launch Body IMU first
-run_body_imu 7 0x68 50.0 "/Body/mpu" &
-pids+=($!)
-
-# Launches both bridges (independent retries)
-run_bridge left  "$ESP_L" "$PORT_L" "/leg_l" &
-pids+=($!)
-
-run_bridge right "$ESP_R" "$PORT_R" "/leg_r" &
+# Launch Body IMU bus first
+run_body_imu_bus 7 0x70 50 10.0 &
 pids+=($!)
 
 run_motor_control &
@@ -107,5 +76,4 @@ pids+=($!)
 
 # Keep PID 1 alive
 wait -n || true
- # If one dies, it still waits
- wait
+wait

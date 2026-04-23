@@ -1,15 +1,14 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>body_mpu_reader</name>
+  <name>body_imu_bus</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>ROS 2 node for reading body and leg MPU sensors over a TCA9548A I2C multiplexer.</description>
   <maintainer email="max.eberhard@gmx.net">root</maintainer>
   <license>TODO: License declaration</license>
 
   <depend>rclcpp</depend>
   <depend>tcp_msg</depend>
-  <depend>serial_msg</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
