@@ -32,8 +32,8 @@ SerialProcessor::SerialProcessor()
       motors_{
           HeadMotor(2, 6, 21, 200),                              // middleLeg (index 0)
           HeadMotor(3, 7, 20, 200 * 8),                          // head      (index 1)
-          ShoulderMotor(4, 8, 19, 200*16, imus_[IMU_BODY], imus_[IMU_LEG_L_LEG], -35, 15), // left
-          ShoulderMotor(5, 9, 18, 200*16, imus_[IMU_BODY], imus_[IMU_LEG_R_LEG], -35, 15)  // right
+          ShoulderMotor(4, 8, 19, 200*16, imus_[IMU_BODY], imus_[IMU_LEG_L_LEG], -30, 15), // left
+          ShoulderMotor(5, 9, 18, 200*16, imus_[IMU_BODY], imus_[IMU_LEG_R_LEG], -30, 15)  // right
       },
       motor_ptrs_{
           &motors_.middleLeg,
