@@ -14,18 +14,18 @@ for pkg in tcp_msg serial_msg; do
 done
 
 # Forced rebuild
-if [ -n "${FORCE_REBUILD:-}" ]; then
-  echo "[web_ui:auto_launch] FORCE_REBUILD set -> cleaning build/install"
-  rm -rf build install
-fi
+# if [ -n "${FORCE_REBUILD:-}" ]; then
+#   echo "[web_ui:auto_launch] FORCE_REBUILD set -> cleaning build/install"
+#   rm -rf build install
+# fi
 
 # Build only if needed (first run / clean tree)
-if [ ! -f "install/setup.bash" ] || [ -z "$(ls -A build 2>/dev/null)" ]; then
-  echo "[web_ui:auto_launch] Building workspace (symlink install)…"
-  colcon build --symlink-install
-else
-  echo "[web_ui:auto_launch] Using existing build/install."
-fi
+# if [ ! -f "install/setup.bash" ] || [ -z "$(ls -A build 2>/dev/null)" ]; then
+#   echo "[web_ui:auto_launch] Building workspace (symlink install)…"
+#   colcon build --symlink-install
+# else
+#   echo "[web_ui:auto_launch] Using existing build/install."
+# fi
 
 source /home/ros/ros2_ws/install/setup.bash
 
@@ -37,5 +37,6 @@ export UI_BRIDGE_PORT="${UI_BRIDGE_PORT:-8000}"
 # exec ros2 run ui_bridge api_node
 
 echo "[web_ui:auto_launch] Sleeping (manual mode) — run the node with:"
-echo "  ros2 run ui_bridge_cpp ui_bridge_cpp_node --ros-args -p port:=\${UI_BRIDGE_PORT}"
+# echo "  ros2 run ui_bridge_cpp ui_bridge_cpp_node --ros-args -p port:=\${UI_BRIDGE_PORT}"
+echo "ros2 launch ui_bridge_cpp2 ui_bridge_cpp.launch.py"
 exec sleep infinity
