@@ -40,10 +40,10 @@ void ShoulderMotor::tryHoming() {
     const float anchorA = 0.0f;
     const float anchorB = _normalizeAngle(_minRelativeAngleDeg);
 
-    const float homeTarget =
-        (fabs(_normalizeAngle(measuredAngle) - anchorA) <= fabs(_normalizeAngle(measuredAngle) - anchorB))
-            ? anchorA
-            : anchorB;
+    const float errA = fabs(_signedShortestAngleError(measuredAngle, anchorA));
+    const float errB = fabs(_signedShortestAngleError(measuredAngle, anchorB));
+
+    const float homeTarget = (errA <= errB) ? anchorA : anchorB;
 
     float angleError = _signedShortestAngleError(measuredAngle, homeTarget);
     
