@@ -19,8 +19,6 @@
   <depend>rclcpp_action</depend>
   <depend>behavior_msgs</depend>
 
-  <build_depend>rapidjson-dev</build_depend>
-
   <export>
     <build_type>ament_cmake</build_type>
   </export>

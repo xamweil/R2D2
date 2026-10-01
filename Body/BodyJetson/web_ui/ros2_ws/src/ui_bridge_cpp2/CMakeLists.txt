@@ -20,19 +20,13 @@ find_package(serial_msg REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(behavior_msgs REQUIRED)
 
-# RapidJSON: try config mode first, fall back to header search
-find_package(RapidJSON QUIET)
-if(NOT RapidJSON_FOUND)
-    find_path(RAPIDJSON_INCLUDE_DIRS
-    NAMES rapidjson/document.h
-    PATHS /usr/include /usr/local/include
-  )
-    if(NOT RAPIDJSON_INCLUDE_DIRS)
-        message(FATAL_ERROR "RapidJSON not found")
-    endif()
-endif()
-
 include(FetchContent)
+
+FetchContent_Declare(
+    nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+)
+FetchContent_MakeAvailable(nlohmann_json)
 
 FetchContent_Declare(
     usockets
@@ -87,6 +81,7 @@ add_executable(ui_bridge_cpp_node
   src/main.cpp
   src/bridge_node.cpp
   src/http_server.cpp
+  src/state_json.cpp
 )
 
 if(MJPEG_TEST_PATTERN)
@@ -95,7 +90,6 @@ endif()
 
 target_include_directories(ui_bridge_cpp_node PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
-  ${RAPIDJSON_INCLUDE_DIRS}
 )
 
 target_compile_definitions(ui_bridge_cpp_node PRIVATE
@@ -105,7 +99,7 @@ target_compile_definitions(ui_bridge_cpp_node PRIVATE
 )
 
 ament_target_dependencies(ui_bridge_cpp_node rclcpp rclcpp_action std_msgs sensor_msgs tcp_msg vision_msgs serial_msg behavior_msgs)
-target_link_libraries(ui_bridge_cpp_node uWebSockets
+target_link_libraries(ui_bridge_cpp_node uWebSockets nlohmann_json::nlohmann_json
     $<$<BOOL:${MJPEG_TEST_PATTERN}>:stb>
 )
 

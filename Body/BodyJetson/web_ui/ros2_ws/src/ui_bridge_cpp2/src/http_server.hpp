@@ -19,7 +19,8 @@ public:
     static constexpr const char *WS_TOPIC = "broadcast";
 
     HttpServer(ui_bridge::TelemetryStore &store, std::string doc_root,
-               const rclcpp::Logger &logger, int mjpeg_fps);
+               const rclcpp::Logger &logger, int mjpeg_fps, double state_hz,
+               double stale_sec);
 
     void run(int port);
     void shutdown();
@@ -40,12 +41,17 @@ private:
     std::string doc_root_;
     rclcpp::Logger logger_;
     int mjpeg_fps_;
+    double state_hz_;
+    double stale_sec_;
     uWS::App app_;
+    struct us_timer_t *state_timer_ = nullptr;
     std::function<sensor_msgs::msg::CompressedImage::ConstSharedPtr()>
         image_source_;
 #ifdef MJPEG_TEST_PATTERN
     JpegGenerator jpeg_generator_;
 #endif
+    void setup_state_timer();
+    void broadcast_state();
     void serve_static_file(uWS::HttpResponse<false> *res,
                            uWS::HttpRequest *req);
     // std::set<uWS::HttpResponse<false> *> mjpeg_clients_;
