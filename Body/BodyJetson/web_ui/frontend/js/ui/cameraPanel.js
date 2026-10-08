@@ -185,6 +185,33 @@ async function runCameraTiltCommand(methodName, args = []) {
 let latestSceneDetections = null;
 let latestTrackingTracks = null;
 
+function adaptFlatEntry(entry, hasTrackId) {
+  if (!entry?.data) return entry;
+  // Already in nested format (Python bridge) -- pass through
+  if (entry.data.detections) return entry;
+  // Flat format from C++ bridge: data is array of arrays
+  if (!Array.isArray(entry.data)) return entry;
+
+  const detections = entry.data.map((arr) => {
+    const det = {
+      bbox: {
+        center: { position: { x: arr[0], y: arr[1] } },
+        size_x: arr[2],
+        size_y: arr[3],
+      },
+      results: [
+        { hypothesis: { class_id: String(arr[4]), score: Number(arr[5]) } },
+      ],
+    };
+    if (hasTrackId && arr.length > 6) {
+      det.id = String(arr[6]);
+    }
+    return det;
+  });
+
+  return { ...entry, data: { detections } };
+}
+
 let showDetections = false;
 let showLabels = true;
 
@@ -608,12 +635,12 @@ function attachFollowTrackBehavior() {
 }
 
 export function updateSceneDetections(entry) {
-  latestSceneDetections = entry;
+  latestSceneDetections = adaptFlatEntry(entry, false);
   renderAllOverlays();
 }
 
 export function updateTrackingTracks(entry) {
-  latestTrackingTracks = entry;
+  latestTrackingTracks = adaptFlatEntry(entry, true);
   syncFollowTrackSelectOptions();
 
   if (isFollowTrackActive) {
