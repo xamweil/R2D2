@@ -27,7 +27,7 @@ done
 #   echo "[web_ui:auto_launch] Using existing build/install."
 # fi
 
-source /home/ros/ros2_ws/install/setup.bash
+# source /home/ros/ros2_ws/install/setup.bash
 
 # API host/port configurable
 export UI_BRIDGE_HOST="${UI_BRIDGE_HOST:-0.0.0.0}"

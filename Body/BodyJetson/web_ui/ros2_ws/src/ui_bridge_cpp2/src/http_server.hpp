@@ -9,7 +9,7 @@
 #include <rclcpp/logger.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
 
-#include <functional>
+#include <set>
 #include <string>
 
 namespace ui_bridge {
@@ -24,17 +24,6 @@ public:
 
     void run(int port);
     void shutdown();
-    // void broadcast(const std::string &message);
-
-    // void set_image_source(
-    //     std::function<sensor_msgs::msg::CompressedImage::ConstSharedPtr()>
-    //     fn);
-    //
-    // using CommandHandler =
-    //     std::function<void(const std::string &kind, const std::string &body,
-    //                        std::function<void(const std::string &)>
-    //                        respond)>;
-    // void set_command_handler(CommandHandler handler);
 
 private:
     TelemetryStore *store_;
@@ -45,24 +34,26 @@ private:
     double stale_sec_;
     uWS::App app_;
     struct us_timer_t *state_timer_ = nullptr;
-    std::function<sensor_msgs::msg::CompressedImage::ConstSharedPtr()>
-        image_source_;
 #ifdef MJPEG_TEST_PATTERN
-    JpegGenerator jpeg_generator_;
+    ui_bridge_cpp::JpegGenerator jpeg_generator_;
+#else
+    uint64_t mjpeg_seen_generation_ = 0;
 #endif
     void setup_state_timer();
     void broadcast_state();
     void serve_static_file(uWS::HttpResponse<false> *res,
                            uWS::HttpRequest *req);
-    // std::set<uWS::HttpResponse<false> *> mjpeg_clients_;
-    // std::set<uWS::HttpResponse<false> *> mjpeg_backpressure_;
-    // struct us_timer_t *mjpeg_timer_ = nullptr;
-    // CommandHandler command_handler_;
 
-    // void setup_post_routes();
-    // void setup_mjpeg_timer();
-    // void serve_mjpeg_stream(uWS::HttpResponse<false> *res,
-    //                         uWS::HttpRequest *req);
+    std::set<uWS::HttpResponse<false> *> mjpeg_clients_;
+    struct us_timer_t *mjpeg_timer_ = nullptr;
+    void setup_mjpeg_timer();
+    void broadcast_mjpeg_frame();
+    void serve_mjpeg_stream(uWS::HttpResponse<false> *res);
+
+    static void write_mjpeg_frame(uWS::HttpResponse<false> *res,
+                                  const std::string &frame);
+    static size_t buffered_amount(uWS::HttpResponse<false> *res);
+    static std::string make_mjpeg_frame(std::string_view jpeg);
 
     static void serve_file(uWS::HttpResponse<false> *res,
                            const std::string &path);

@@ -1,6 +1,8 @@
 #include "http_server.hpp"
 
+#include "Loop.h"
 #include "bridge_node.hpp"
+#include "libusockets.h"
 #include "state_json.hpp"
 
 #include <rclcpp/logging.hpp>
@@ -11,6 +13,8 @@
 #include <string_view>
 
 namespace ui_bridge {
+
+static constexpr const char *MJPEG_BOUNDARY = "mjpegframe";
 
 HttpServer::HttpServer(TelemetryStore &store, std::string doc_root,
                        const rclcpp::Logger &logger, int mjpeg_fps,
@@ -45,6 +49,9 @@ HttpServer::HttpServer(TelemetryStore &store, std::string doc_root,
 
     app_.ws<int>("/ws", std::move(behavior));
 
+    app_.get("/mjpeg",
+             [this](auto *res, auto * /*req*/) { serve_mjpeg_stream(res); });
+
     app_.get("/*", [](auto *res, auto * /*req*/) {
         res->writeStatus("404 Not Found");
         res->writeHeader("Content-Type", "text/plain");
@@ -54,6 +61,7 @@ HttpServer::HttpServer(TelemetryStore &store, std::string doc_root,
 
 void HttpServer::run(int port) {
     setup_state_timer();
+    setup_mjpeg_timer();
 
     app_.listen(port, [this, port](auto *socket) {
         if (socket) {
@@ -72,18 +80,24 @@ void HttpServer::shutdown() {
             us_timer_close(state_timer_);
             state_timer_ = nullptr;
         }
+        if (mjpeg_timer_) {
+            us_timer_close(mjpeg_timer_);
+            mjpeg_timer_ = nullptr;
+        }
         app_.close();
     });
 }
 
 void HttpServer::setup_state_timer() {
     // Runs on the uWS loop thread, so publishing to websockets is safe here.
-    state_timer_ = us_create_timer(
-        reinterpret_cast<struct us_loop_t *>(uWS::Loop::get()), 0,
-        sizeof(HttpServer *));
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto *loop = reinterpret_cast<us_loop_t *>(uWS::Loop::get());
+    state_timer_ = us_create_timer(loop, 0, sizeof(HttpServer *));
     *static_cast<HttpServer **>(us_timer_ext(state_timer_)) = this;
 
-    int period_ms = std::max(1, static_cast<int>(1000.0 / state_hz_));
+    constexpr double MS_PER_SECOND = 1000.0;
+    int period_ms = std::max(1, static_cast<int>(MS_PER_SECOND / state_hz_));
     us_timer_set(
         state_timer_,
         [](struct us_timer_t *t) {
@@ -98,6 +112,119 @@ void HttpServer::broadcast_state() {
         return;
     app_.publish(WS_TOPIC, build_robot_state_json(*store_, stale_sec_),
                  uWS::OpCode::TEXT);
+}
+
+void HttpServer::setup_mjpeg_timer() {
+    // Runs on the uWS loop thread, so writing to responses is safe here.
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto *loop = reinterpret_cast<us_loop_t *>(uWS::Loop::get());
+    mjpeg_timer_ = us_create_timer(loop, 0, sizeof(HttpServer *));
+    *static_cast<HttpServer **>(us_timer_ext(mjpeg_timer_)) = this;
+
+    constexpr int MS_PER_SECOND = 1000;
+    int period_ms = std::max(1, MS_PER_SECOND / std::max(1, mjpeg_fps_));
+    us_timer_set(
+        mjpeg_timer_,
+        [](struct us_timer_t *t) {
+            auto *self = *static_cast<HttpServer **>(us_timer_ext(t));
+            self->broadcast_mjpeg_frame();
+        },
+        period_ms, period_ms);
+}
+
+void HttpServer::broadcast_mjpeg_frame() {
+    if (mjpeg_clients_.empty())
+        return;
+
+#ifdef MJPEG_TEST_PATTERN
+    std::string frame = make_mjpeg_frame(jpeg_generator_.next_frame());
+#else
+    // Only forward frames that arrived since the last tick.
+    auto img = store_->compressed_image.load_if_newer(mjpeg_seen_generation_);
+    if (!img || img->data.empty())
+        return;
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    std::string frame = make_mjpeg_frame(std::string_view(
+        reinterpret_cast<const char *>(img->data.data()), img->data.size()));
+#endif
+
+    for (auto *res : mjpeg_clients_) {
+        // Drop frames for slow clients instead of piling up backpressure.
+        if (buffered_amount(res) != 0)
+            continue;
+        write_mjpeg_frame(res, frame);
+    }
+}
+
+void HttpServer::serve_mjpeg_stream(uWS::HttpResponse<false> *res) {
+    std::string content_type = "multipart/x-mixed-replace; boundary=";
+    content_type += MJPEG_BOUNDARY;
+
+    res->writeHeader("Content-Type", content_type);
+    res->writeHeader("Cache-Control", "no-cache, no-store");
+    res->writeHeader("Connection", "keep-alive");
+
+    mjpeg_clients_.insert(res);
+    RCLCPP_INFO(logger_, "[mjpeg] client connected (%zu total)",
+                mjpeg_clients_.size());
+
+    res->onAborted([this, res]() {
+        mjpeg_clients_.erase(res);
+        RCLCPP_INFO(logger_, "[mjpeg] client disconnected (%zu total)",
+                    mjpeg_clients_.size());
+    });
+
+    // With an onWritable handler registered uWS neither drains backpressure
+    // itself nor arms the idle timeout, so drain here by uncorking an empty
+    // cork. Keeps the long-lived stream from being closed after 10 s.
+    res->onWritable([res](uintmax_t /*offset*/) {
+        res->cork([]() {});
+        return true;
+    });
+
+#ifndef MJPEG_TEST_PATTERN
+    // Send the latest frame right away so the client doesn't wait for the
+    // next camera image. Otherwise headers go out with the first frame.
+    auto snapshot = store_->compressed_image.load();
+    if (snapshot.msg && !snapshot.msg->data.empty()) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        write_mjpeg_frame(
+            res, make_mjpeg_frame(std::string_view(
+                     reinterpret_cast<const char *>(snapshot.msg->data.data()),
+                     snapshot.msg->data.size())));
+    }
+#endif
+}
+
+void HttpServer::write_mjpeg_frame(uWS::HttpResponse<false> *res,
+                                   const std::string &frame) {
+    // Cork so the chunk header and frame go out in one send.
+    res->cork([res, &frame]() { res->write(frame); });
+}
+
+size_t HttpServer::buffered_amount(uWS::HttpResponse<false> *res) {
+    // HttpResponse keeps its backpressure buffer private; it lives in the
+    // socket extension (same as HttpResponse::getHttpResponseData()).
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto *socket = reinterpret_cast<us_socket_t *>(res);
+    auto *data =
+        static_cast<uWS::HttpResponseData<false> *>(us_socket_ext(0, socket));
+    return data->buffer.length();
+}
+
+std::string HttpServer::make_mjpeg_frame(std::string_view jpeg) {
+    std::string frame;
+    constexpr size_t PART_HEADER_RESERVE = 128;
+    frame.reserve(jpeg.size() + PART_HEADER_RESERVE);
+    frame += "--";
+    frame += MJPEG_BOUNDARY;
+    frame += "\r\nContent-Type: image/jpeg\r\nContent-Length: ";
+    frame += std::to_string(jpeg.size());
+    frame += "\r\n\r\n";
+    frame += jpeg;
+    frame += "\r\n";
+    return frame;
 }
 
 void HttpServer::serve_static_file(uWS::HttpResponse<false> *res,
