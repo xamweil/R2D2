@@ -7,6 +7,7 @@ find_package(rosidl_default_generators REQUIRED)
 # Generate code for both msg and srv
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/MotorCommand.msg"
+  "msg/DDSM115Feedback.msg"
   "srv/DeviceCommand.srv"
 )
 
