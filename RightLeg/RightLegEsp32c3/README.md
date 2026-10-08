@@ -12,6 +12,9 @@ Published topics:
 
 - `/leg_r/taster_event` (`leg_msg/msg/TasterEvent`)
 - `/leg_r/radar` (`leg_msg/msg/Ld2410State`)
+## TODO:
+* There is no propper recovery on connection lost to the client. Must be implemented! (Quickfix powercycle esp)
+* Rewrite to make config file for Right and left leg, make code generic and replace Right leg files with link to left leg.
 
 ## What’s here
 
