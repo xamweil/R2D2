@@ -2,9 +2,9 @@
 #include "rclcpp/rclcpp.hpp"
 #include "drive_control/DriveControlNode.hpp"
 
-int main(int argc, char* argv[]
+int main(int argc, char* argv[])
 {
-    rclcpp::init(arc, argv);
+    rclcpp::init(argc, argv);
 
     try
     {
