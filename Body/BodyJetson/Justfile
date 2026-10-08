@@ -3,6 +3,10 @@ COMPOSE := "docker compose"
 # Paths/vars
 ROS_SETUP := "/home/ros/ros2_ws/install/setup.bash"
 
+# Build all Docker service images
+build:
+    {{COMPOSE}} build
+
 # Build base image
 build-base:
 	docker build -t bodyjetson-ros:humble base
@@ -11,14 +15,11 @@ build-base:
 build-service:
 	docker build -t bodyjetson/{{SERVICE}}:latest {{SERVICE}}
 
-# Build base and service 
-build: build-base build-service
-
-# Bring everything up (detached)
+# Start all containers
 up:
     {{COMPOSE}} up -d
 
-# Stop and remove containers (keeps volumes)
+# Stop all containers
 down:
     {{COMPOSE}} down
 
@@ -35,9 +36,31 @@ clean:
     sudo rm -rf central_comm/ros2_ws/build \
         central_comm/ros2_ws/install \
         central_comm/ros2_ws/log
+    
+    sudo rm -rf action_layer/ros2_ws/build \
+        action_layer/ros2_ws/install \
+        action_layer/ros2_ws/log
+    
+    sudo rm -rf camera_relay/ros2_ws/build \
+        camera_relay/ros2_ws/install \
+        camera_relay/ros2_ws/log
+    
+    sudo rm -rf visual_perception/ros2_ws/build \
+        visual_perception/ros2_ws/install \
+        visual_perception/ros2_ws/log
+    
+    sudo rm -rf web_ui/ros2_ws/build \
+        web_ui/ros2_ws/install \
+        web_ui/ros2_ws/log
 
-# Clean rebuild
-rebuild: down clean build
+# Rebuild all images and restart all services
+rebuild: down clean
+    {{COMPOSE}} up -d --build
+
+# Full Docker image rebuild without layer cache
+rebuild-full: down clean
+    {{COMPOSE}} build --no-cache
+    {{COMPOSE}} up -d
 
 # Run Test.py inside the container
 test:
