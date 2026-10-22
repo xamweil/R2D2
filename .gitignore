@@ -47,3 +47,5 @@ detections/
 
 sync.sh
 watch.sh
+
+.venv/

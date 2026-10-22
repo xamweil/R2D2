@@ -1,6 +1,6 @@
 #pragma once
 
-#include "bridge_node.hpp"
+#include "topics.hpp"
 #ifdef MJPEG_TEST_PATTERN
 #include "jpeg_generator.hpp"
 #endif
@@ -18,7 +18,7 @@ class HttpServer {
 public:
     static constexpr const char *WS_TOPIC = "broadcast";
 
-    HttpServer(ui_bridge::TelemetryStore &store, std::string doc_root,
+    HttpServer(TopicRegistry &topics, std::string doc_root,
                const rclcpp::Logger &logger, int mjpeg_fps, double state_hz,
                double stale_sec);
 
@@ -26,7 +26,9 @@ public:
     void shutdown();
 
 private:
-    TelemetryStore *store_;
+    TopicRegistry *topics_;
+    Slot<sensor_msgs::msg::CompressedImage> *camera_image_;
+    std::string state_buf_;
     std::string doc_root_;
     rclcpp::Logger logger_;
     int mjpeg_fps_;

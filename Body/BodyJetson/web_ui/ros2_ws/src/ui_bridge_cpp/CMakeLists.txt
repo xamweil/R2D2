@@ -12,6 +12,8 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(rosidl_typesupport_cpp REQUIRED)
+find_package(rosidl_typesupport_introspection_cpp REQUIRED)
 
 find_package(sensor_msgs REQUIRED)
 find_package(tcp_msg REQUIRED)
@@ -81,6 +83,7 @@ add_executable(ui_bridge_cpp_node
   src/main.cpp
   src/bridge_node.cpp
   src/http_server.cpp
+  src/msg_json.cpp
   src/state_json.cpp
 )
 
@@ -98,7 +101,8 @@ target_compile_definitions(ui_bridge_cpp_node PRIVATE
     $<$<BOOL:${MJPEG_TEST_PATTERN}>:MJPEG_TEST_PATTERN>
 )
 
-ament_target_dependencies(ui_bridge_cpp_node rclcpp rclcpp_action std_msgs sensor_msgs tcp_msg vision_msgs serial_msg behavior_msgs)
+ament_target_dependencies(ui_bridge_cpp_node rclcpp rclcpp_action std_msgs
+    rosidl_typesupport_cpp rosidl_typesupport_introspection_cpp sensor_msgs tcp_msg vision_msgs serial_msg behavior_msgs)
 target_link_libraries(ui_bridge_cpp_node uWebSockets nlohmann_json::nlohmann_json
     $<$<BOOL:${MJPEG_TEST_PATTERN}>:stb>
 )

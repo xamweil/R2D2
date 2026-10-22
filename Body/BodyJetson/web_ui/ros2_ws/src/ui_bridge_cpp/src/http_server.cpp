@@ -1,7 +1,6 @@
 #include "http_server.hpp"
 
 #include "Loop.h"
-#include "bridge_node.hpp"
 #include "libusockets.h"
 #include "state_json.hpp"
 
@@ -15,11 +14,15 @@
 namespace ui_bridge {
 
 static constexpr const char *MJPEG_BOUNDARY = "mjpegframe";
+static constexpr double MS_PER_SECOND = 1000.0;
 
-HttpServer::HttpServer(TelemetryStore &store, std::string doc_root,
+HttpServer::HttpServer(TopicRegistry &topics, std::string doc_root,
                        const rclcpp::Logger &logger, int mjpeg_fps,
                        double state_hz, double stale_sec)
-    : store_(&store),
+    : topics_(&topics),
+      camera_image_(&find_topic<sensor_msgs::msg::CompressedImage>(
+                         topics, CAMERA_IMAGE_KEY)
+                         .slot),
       doc_root_(std::move(doc_root)),
       logger_(logger),
       mjpeg_fps_(mjpeg_fps),
@@ -96,7 +99,6 @@ void HttpServer::setup_state_timer() {
     state_timer_ = us_create_timer(loop, 0, sizeof(HttpServer *));
     *static_cast<HttpServer **>(us_timer_ext(state_timer_)) = this;
 
-    constexpr double MS_PER_SECOND = 1000.0;
     int period_ms = std::max(1, static_cast<int>(MS_PER_SECOND / state_hz_));
     us_timer_set(
         state_timer_,
@@ -110,8 +112,8 @@ void HttpServer::setup_state_timer() {
 void HttpServer::broadcast_state() {
     if (app_.numSubscribers(WS_TOPIC) == 0)
         return;
-    app_.publish(WS_TOPIC, build_robot_state_json(*store_, stale_sec_),
-                 uWS::OpCode::TEXT);
+    build_robot_state_json(*topics_, stale_sec_, state_buf_);
+    app_.publish(WS_TOPIC, state_buf_, uWS::OpCode::TEXT);
 }
 
 void HttpServer::setup_mjpeg_timer() {
@@ -122,8 +124,8 @@ void HttpServer::setup_mjpeg_timer() {
     mjpeg_timer_ = us_create_timer(loop, 0, sizeof(HttpServer *));
     *static_cast<HttpServer **>(us_timer_ext(mjpeg_timer_)) = this;
 
-    constexpr int MS_PER_SECOND = 1000;
-    int period_ms = std::max(1, MS_PER_SECOND / std::max(1, mjpeg_fps_));
+    int period_ms =
+        std::max(1, static_cast<int>(MS_PER_SECOND / std::max(1, mjpeg_fps_)));
     us_timer_set(
         mjpeg_timer_,
         [](struct us_timer_t *t) {
@@ -141,7 +143,7 @@ void HttpServer::broadcast_mjpeg_frame() {
     std::string frame = make_mjpeg_frame(jpeg_generator_.next_frame());
 #else
     // Only forward frames that arrived since the last tick.
-    auto img = store_->compressed_image.load_if_newer(mjpeg_seen_generation_);
+    auto img = camera_image_->load_if_newer(mjpeg_seen_generation_);
     if (!img || img->data.empty())
         return;
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -186,7 +188,7 @@ void HttpServer::serve_mjpeg_stream(uWS::HttpResponse<false> *res) {
 #ifndef MJPEG_TEST_PATTERN
     // Send the latest frame right away so the client doesn't wait for the
     // next camera image. Otherwise headers go out with the first frame.
-    auto snapshot = store_->compressed_image.load();
+    auto snapshot = camera_image_->load();
     if (snapshot.msg && !snapshot.msg->data.empty()) {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         write_mjpeg_frame(

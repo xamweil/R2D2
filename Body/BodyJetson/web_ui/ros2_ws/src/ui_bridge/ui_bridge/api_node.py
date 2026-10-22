@@ -10,7 +10,7 @@ from .ros_bridge import ros_thread_main
 from .web_app import create_app
 
 def main() -> None:
-    ros_cmd_q: "queue.Queue[RosCmd]" = queue.Queue(maxsize=300)
+    ros_cmd_q: queue.Queue[RosCmd] = queue.Queue(maxsize=300)
 
     # Start ROS in background thread
     t = threading.Thread(target=ros_thread_main, args=(ros_cmd_q,), daemon=True)

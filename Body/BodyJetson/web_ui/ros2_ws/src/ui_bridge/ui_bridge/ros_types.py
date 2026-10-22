@@ -7,4 +7,4 @@ import queue
 class RosCmd:
     kind: str
     data: Dict[str, Any]
-    reply_q: "queue.Queue[Dict[str, Any]]"
+    reply_q: queue.Queue[Dict[str, Any]]

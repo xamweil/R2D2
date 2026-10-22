@@ -14,6 +14,7 @@ public:
     struct Snapshot {
         std::shared_ptr<const T> msg;
         Clock::time_point recv_time;
+        uint64_t generation{};
     };
 
     void store(std::shared_ptr<const T> v) noexcept {
@@ -33,13 +34,13 @@ public:
 
     Snapshot load() const noexcept {
         std::lock_guard lk(m_);
-        return {slot_, recv_time_};
+        return {slot_, recv_time_, generation_};
     }
 
 private:
     mutable std::mutex m_;
     std::shared_ptr<const T> slot_;
-    Clock::time_point recv_time_{};
+    Clock::time_point recv_time_;
     uint64_t generation_ = 0;
 };
 

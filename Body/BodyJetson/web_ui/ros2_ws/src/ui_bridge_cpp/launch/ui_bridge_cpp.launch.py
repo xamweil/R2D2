@@ -27,7 +27,7 @@ def generate_launch_description():
                 description="MJPEG stream frame rate",
             ),
             Node(
-                package="ui_bridge_cpp2",
+                package="ui_bridge_cpp",
                 executable="ui_bridge_cpp_node",
                 name="ui_bridge_cpp",
                 output="screen",

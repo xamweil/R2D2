@@ -292,7 +292,80 @@ class WebUiBridge(Node):
         return out
 
 
-def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
+def _handle_cmd(node: WebUiBridge, cmd: RosCmd) -> Dict[str, Any]:
+    if cmd.kind == "subscribe":
+        node.subscribe_alias(cmd.data["alias"], cmd.data["topic"], cmd.data["type"])
+        return {"ok": True}
+
+    elif cmd.kind == "unsubscribe":
+        node.unsubscribe_alias(cmd.data["alias"])
+        return {"ok": True}
+
+    elif cmd.kind == "call_service":
+        resp = node.call_service(
+            cmd.data["service"],
+            cmd.data["type"],
+            cmd.data["request"],
+            timeout_sec=float(cmd.data.get("timeout_sec", 2.0)),
+        )
+        return {"ok": True, "response": to_jsonable(resp)}
+
+    elif cmd.kind == "snapshot":
+        return {"ok": True, "state": node.snapshot_state()}
+
+    elif cmd.kind == "camera_start":
+        node.camera_start()
+        return {"ok": True}
+
+    elif cmd.kind == "camera_stop":
+        node.camera_stop()
+        return {"ok": True}
+
+    elif cmd.kind == "camera_get":
+        res = node.camera_get_latest()
+        # IMPORTANT: do not to_jsonable() raw bytes
+        if not res["ok"]:
+            return res
+        return {"ok": True, "jpeg": res["jpeg"], "t": res["t"]}
+
+    elif cmd.kind == "publish":
+        alias = cmd.data["alias"]
+        topic = cmd.data["topic"]
+        msg_type = cmd.data["type"]
+        msg = cmd.data["msg"]
+
+        node.publish_alias(alias, topic, msg_type, msg)
+        return {"ok": True}
+
+    elif cmd.kind == "send_action_goal":
+        alias = cmd.data["alias"]
+        action_name = cmd.data["action"]
+        action_type = cmd.data["type"]
+        goal = cmd.data["goal"]
+        timeout_sec = float(cmd.data.get("timeout_sec", 2.0))
+
+        result = node.send_action_goal(
+            alias,
+            action_name,
+            action_type,
+            goal,
+            timeout_sec=timeout_sec,
+        )
+        return {"ok": True, "result": result}
+
+    elif cmd.kind == "cancel_action_goal":
+        alias = cmd.data["alias"]
+        timeout_sec = float(cmd.data.get("timeout_sec", 2.0))
+
+        result = node.cancel_action_goal(alias, timeout_sec=timeout_sec)
+        return {"ok": True, "result": result}
+
+    else:
+        node.get_logger().warning(f"Unknown command kind: '{cmd.kind}'")
+        return {"ok": False, "error": f"unknown_cmd_kind:{cmd.kind}"}
+
+
+def ros_thread_main(ros_cmd_q: queue.Queue[RosCmd]) -> None:
     rclpy.init()
     node = WebUiBridge()
 
@@ -321,91 +394,17 @@ def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
         while rclpy.ok():
             rclpy.spin_once(node, timeout_sec=0.05)
 
-            try:
-                cmd = ros_cmd_q.get(timeout=0.05)
-            except queue.Empty:
-                continue
-
-            try:
-                if cmd.kind == "subscribe":
-                    node.subscribe_alias(
-                        cmd.data["alias"], cmd.data["topic"], cmd.data["type"]
-                    )
-                    cmd.reply_q.put({"ok": True})
-
-                elif cmd.kind == "unsubscribe":
-                    node.unsubscribe_alias(cmd.data["alias"])
-                    cmd.reply_q.put({"ok": True})
-
-                elif cmd.kind == "call_service":
-                    resp = node.call_service(
-                        cmd.data["service"],
-                        cmd.data["type"],
-                        cmd.data["request"],
-                        timeout_sec=float(cmd.data.get("timeout_sec", 2.0)),
-                    )
-                    cmd.reply_q.put({"ok": True, "response": to_jsonable(resp)})
-
-                elif cmd.kind == "snapshot":
-                    cmd.reply_q.put({"ok": True, "state": node.snapshot_state()})
-
-                elif cmd.kind == "camera_start":
-                    node.camera_start()
-                    cmd.reply_q.put({"ok": True})
-
-                elif cmd.kind == "camera_stop":
-                    node.camera_stop()
-                    cmd.reply_q.put({"ok": True})
-
-                elif cmd.kind == "camera_get":
-                    res = node.camera_get_latest()
-                    # IMPORTANT: do not to_jsonable() raw bytes
-                    if not res["ok"]:
-                        cmd.reply_q.put(res)
-                    else:
-                        cmd.reply_q.put(
-                            {"ok": True, "jpeg": res["jpeg"], "t": res["t"]}
-                        )
-
-                elif cmd.kind == "publish":
-                    alias = cmd.data["alias"]
-                    topic = cmd.data["topic"]
-                    msg_type = cmd.data["type"]
-                    msg = cmd.data["msg"]
-
-                    node.publish_alias(alias, topic, msg_type, msg)
-                    cmd.reply_q.put({"ok": True})
-
-                elif cmd.kind == "send_action_goal":
-                    alias = cmd.data["alias"]
-                    action_name = cmd.data["action"]
-                    action_type = cmd.data["type"]
-                    goal = cmd.data["goal"]
-                    timeout_sec = float(cmd.data.get("timeout_sec", 2.0))
-
-                    result = node.send_action_goal(
-                        alias,
-                        action_name,
-                        action_type,
-                        goal,
-                        timeout_sec=timeout_sec,
-                    )
-                    cmd.reply_q.put({"ok": True, "result": result})
-
-                elif cmd.kind == "cancel_action_goal":
-                    alias = cmd.data["alias"]
-                    timeout_sec = float(cmd.data.get("timeout_sec", 2.0))
-
-                    result = node.cancel_action_goal(alias, timeout_sec=timeout_sec)
-                    cmd.reply_q.put({"ok": True, "result": result})
-
-                else:
-                    cmd.reply_q.put(
-                        {"ok": False, "error": f"unknown_cmd_kind:{cmd.kind}"}
-                    )
-
-            except Exception as e:
-                cmd.reply_q.put({"ok": False, "error": str(e)})
+            while True:
+                try:
+                    cmd = ros_cmd_q.get_nowait()
+                except queue.Empty:
+                    break
+                try:
+                    reply = _handle_cmd(node, cmd)
+                except Exception as e:
+                    node.get_logger().error(f"Command '{cmd.kind}' failed: {e}")
+                    reply = {"ok": False, "error": str(e)}
+                cmd.reply_q.put(reply)
 
     finally:
         node.destroy_node()
