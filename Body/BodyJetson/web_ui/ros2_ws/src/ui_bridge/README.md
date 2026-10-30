@@ -162,6 +162,30 @@ This allows the UI to detect stale or missing sensors.
 
 ---
 
+# Threads and Message Intake
+
+| Thread | Work |
+| --- | --- |
+| Main (event loop) | FastAPI, WebSocket state frames, `/mjpeg` |
+| `ros_thread_main` | subscriptions, publishing, camera frames |
+| `calls_thread_main` | service and action calls |
+
+The ROS thread takes the newest message of each topic once per `INTAKE_PERIOD`,
+the shorter of the `STATE_HZ` and `CAMERA_FPS` periods. Subscriptions use QoS
+depth 1, so DDS discards older unread messages. Every message taken costs Python
+time whether the UI reads it or not.
+
+A topic in the bridge is therefore a latest-value view, not an event stream: a
+faster topic is sampled, and a burst between two ticks leaves only its last message.
+
+Commands in `ros_cmd_q` run as soon as they arrive, between intake ticks.
+
+Service and action calls go through `ros_call_q` to their own node,
+`web_ui_bridge_calls`, one at a time. A slow call delays the next call, but not
+motor commands, the camera stream or robot state.
+
+---
+
 # Package Structure
 
 ```
@@ -172,7 +196,7 @@ ui_bridge/
 │   topic alias configuration
 │
 ├── ros_bridge.py
-│   ROS subscriptions and publishers
+│   ROS subscriptions, publishers, service and action calls
 │
 ├── ros_introspection.py
 │   ROS type inspection utilities
@@ -182,6 +206,9 @@ ui_bridge/
 │
 ├── serialize.py
 │   ROS → JSON serialization
+│
+├── state_store.py
+│   latest message per alias
 │
 └── web_app.py
     FastAPI server

@@ -28,12 +28,10 @@ async def _send_msg(ws: WebSocket, obj: Any) -> None:
 
 
 def _json_response(obj: Any) -> Response:
-    """Replies can hold ROS messages, which FastAPI can't encode."""
     return Response(dumps(obj), media_type="application/json")
 
 
 def _state_frame(store: LatestMessageStore, cursor: int) -> Tuple[int, str]:
-    """Encode the entries newer than cursor. Returns the new cursor and the frame."""
     seq, changed = store.since(cursor)
     try:
         return seq, dumps_text({
@@ -67,7 +65,9 @@ class GenericSubscribe(BaseModel):
     type: str
 
 
-def create_app(ros_cmd_q: "queue.Queue[RosCmd]", store: LatestMessageStore) -> FastAPI:
+def create_app(
+    ros_cmd_q: "queue.Queue[RosCmd]", ros_call_q: "queue.Queue[RosCmd]", store: LatestMessageStore
+) -> FastAPI:
     app = FastAPI(title="web_ui")
 
     frontend_dir = os.environ.get("WEB_UI_FRONTEND_DIR", "/home/ros/frontend")
@@ -95,7 +95,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]", store: LatestMessageStore) -> F
         info = ALLOWED_SERVICES[body.alias]
         reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
 
-        ros_cmd_q.put(RosCmd(
+        ros_call_q.put(RosCmd(
             kind="call_service",
             data={"service": info["name"], "type": info["type"], "request": body.request, "timeout_sec": body.timeout_sec},
             reply_q=reply_q,
@@ -153,7 +153,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]", store: LatestMessageStore) -> F
         info = ALLOWED_ACTIONS[alias]
 
         reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
-        ros_cmd_q.put(
+        ros_call_q.put(
             RosCmd(
                 kind="send_action_goal",
                 data={
@@ -167,7 +167,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]", store: LatestMessageStore) -> F
         )
 
         try:
-            result = reply_q.get(timeout=2.0)
+            result = await _get_reply(reply_q, 2.0)
         except queue.Empty:
             raise HTTPException(status_code=504, detail="Action start timed out")
 
@@ -184,7 +184,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]", store: LatestMessageStore) -> F
             raise HTTPException(status_code=400, detail=f"Unknown action alias: {alias}")
 
         reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
-        ros_cmd_q.put(
+        ros_call_q.put(
             RosCmd(
                 kind="cancel_action_goal",
                 data={
@@ -195,7 +195,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]", store: LatestMessageStore) -> F
         )
 
         try:
-            result = reply_q.get(timeout=2.0)
+            result = await _get_reply(reply_q, 2.0)
         except queue.Empty:
             raise HTTPException(status_code=504, detail="Action cancel timed out")
 
@@ -314,7 +314,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]", store: LatestMessageStore) -> F
             return {"ok": False, "error": "generic_service_calls_disabled_set_DEV_UNSAFE=1"}
 
         reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
-        ros_cmd_q.put(RosCmd(
+        ros_call_q.put(RosCmd(
             kind="call_service",
             data={"service": body.service, "type": body.type, "request": body.request, "timeout_sec": body.timeout_sec},
             reply_q=reply_q,
@@ -408,7 +408,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]", store: LatestMessageStore) -> F
 
                     info = ALLOWED_SERVICES[alias]
                     reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
-                    ros_cmd_q.put(RosCmd(
+                    ros_call_q.put(RosCmd(
                         kind="call_service",
                         data={"service": info["name"], "type": info["type"], "request": req, "timeout_sec": timeout_sec},
                         reply_q=reply_q
@@ -430,7 +430,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]", store: LatestMessageStore) -> F
                     timeout_sec = float(data.get("timeout_sec", 2.0))
 
                     reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
-                    ros_cmd_q.put(RosCmd(
+                    ros_call_q.put(RosCmd(
                         kind="call_service",
                         data={"service": srv, "type": typ, "request": req, "timeout_sec": timeout_sec},
                         reply_q=reply_q

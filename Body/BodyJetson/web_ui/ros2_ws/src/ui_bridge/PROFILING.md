@@ -57,6 +57,7 @@ Run these on the Jetson, from `Body/BodyJetson`.
 - Keep the same flags and the same 60 second duration.
 - Use the same load: same topics running, and the same number of browser tabs with the camera open. The number of WebSocket clients during the baseline was not recorded. Each client adds send work, so use one tab and note it.
 - An open `/mjpeg` stream matters here. Without a viewer the bridge no longer subscribes to the image topic, so a run with the camera closed flatters the result.
+- Do not press device buttons during a run. The baseline has no service calls, and `profile_after.svg` has some, so the two differ in this respect.
 
 ## Comparing profiles
 
@@ -75,6 +76,7 @@ GROUPS = {
     "all samples": r"^all$",
     "MainThread (event loop)": r"^thread \(\d+\): MainThread",
     "ROS thread": r"ros_thread_main\)$",
+    "calls thread": r"calls_thread_main\)$",
     "executor threads (uvloop_N)": r"^thread \(\d+\): uvloop_",
     "snapshot_state": r"^snapshot_state ",
     "to_jsonable": r"^to_jsonable ",
@@ -83,6 +85,7 @@ GROUPS = {
     "broadcast_loop": r"^broadcast_loop ",
     "_state_frame": r"^_state_frame ",
     "rclpy spin_once": r"^spin_once \(rclpy/__init__|^spin_once \(rclpy/executors",
+    "_take_ready": r"^_take_ready ",
 }
 
 
@@ -124,6 +127,8 @@ py-spy leaves very narrow frames out of the SVG, so a group that took almost no 
 
 `web_ui/profile.svg`, taken before the latest-message store. `snapshot_state` ran on the ROS thread, and `permessage-deflate` was still on.
 
+Its ROS loop also blocked in `ros_cmd_q.get(timeout=0.05)` after each `spin_once`, which capped intake at roughly 20 to 30 messages per second in total. The rest were dropped, so the `spin_once` figure below is not the cost of keeping up with the publishers.
+
 | Group | Samples | Share |
 | --- | --- | --- |
 | All samples | 4915 | 100.0% |
@@ -137,13 +142,29 @@ py-spy leaves very narrow frames out of the SVG, so a group that took almost no 
 | `json.dumps` | 748 | 15.2% |
 | `rclpy` `spin_once` | 369 | 7.5% |
 
+## Uncapped intake
+
+`web_ui/profile_after.svg`, with the latest-message store and `ws_per_message_deflate=False`, and with the ROS loop taking every message. The state path dropped, but total load rose, because the blocking `get` was gone as well.
+
+| Group | Samples | Share |
+| --- | --- | --- |
+| All samples | 6859 | 100.0% |
+| ROS thread | 4765 | 69.5% |
+| MainThread (event loop) | 1531 | 22.3% |
+| Executor threads (`uvloop_N`) | 562 | 8.2% |
+| `rclpy` `spin_once` | 4463 | 65.1% |
+| `broadcast_loop` | 429 | 6.3% |
+| `_state_frame` | 64 | 0.9% |
+
 ## What to look for
 
-With the latest-message store and `ws_per_message_deflate=False`:
+With intake capped at `INTAKE_PERIOD`, and service and action calls on their own thread:
 
 - `snapshot_state`, `to_jsonable`, `json.dumps` and `deflate` should be gone. These names no longer exist in the state path, so seeing them means old code or old settings are running.
-- The `uvloop_N` threads should drop a lot. They ran `_get_reply` for every snapshot, and now only serve `/mjpeg` frame polling and occasional service calls.
-- The ROS thread should be mostly `spin_once`.
+- The ROS thread should be a small part of the total, and its work should sit under `_take_ready`. If `convert_to_py` is still large, detection messages are the first place to look.
+- `spin_once` should only appear on the calls thread, and only during service or action calls.
 - `broadcast_loop` should be a small part of the total. Serialization now runs on the event loop inside `_state_frame`, so if that frame is large, it blocks HTTP and WebSocket handling and needs a closer look.
+- `pthread_cond_timedwait` under uvloop callbacks on MainThread is very likely GIL waiting. It was 373 samples in `profile_after.svg` and should fall.
+- Do not read `uvloop_N` as work. Nearly all of its samples are lock waits in `reply_q.get`.
 
-Both changes landed together, so one before/after run cannot separate the effect of disabling deflate from the effect of the store.
+The baseline and later runs differ in several changes at once, so one before/after pair cannot separate their effects.

@@ -20,7 +20,8 @@ ALLOWED_TOPICS: Dict[str, Dict[str, Any]] = {
     "imu_right_leg": {"name": "/leg_r/imu/leg", "type": "tcp_msg/msg/MPU6500Sample"},
     "imu_body": {"name": "/Body/mpu", "type": "tcp_msg/msg/MPU6500Sample"},
 
-    "camera_info": {"name": "/relay/camera/camera_info", "type": "sensor_msgs/msg/CameraInfo"},
+    # Not read by the frontend
+    "camera_info": {"name": "/relay/camera/camera_info", "type": "sensor_msgs/msg/CameraInfo", "in_state": False},
     # Served by /mjpeg, too large for robot state
     "image_raw_compressed": {"name": "/relay/camera/image_raw/compressed", "type": "sensor_msgs/msg/CompressedImage", "in_state": False},
 
@@ -53,3 +54,7 @@ ALLOWED_ACTIONS: Dict[str, Dict[str, str]] = {
 CAMERA_ALIAS = "image_raw_compressed"
 CAMERA_FPS = float(os.environ.get("CAMERA_FPS", "3"))  # low fps
 CAMERA_PERIOD = 1.0 / max(CAMERA_FPS, 0.5)
+
+# The ROS thread takes the newest message of each topic once per period.
+# Publishers run faster than the UI reads, and every take costs Python time.
+INTAKE_PERIOD = min(STATE_PERIOD, CAMERA_PERIOD)
