@@ -1,5 +1,5 @@
 import os
-from typing import Dict
+from typing import Any, Dict
 
 NODE_NAME = os.environ.get("UI_BRIDGE_NODE_NAME", "web_ui_bridge")
 HOST = os.environ.get("UI_BRIDGE_HOST", "0.0.0.0")
@@ -12,7 +12,8 @@ STATE_PERIOD = 1.0 / max(STATE_HZ, 0.1)
 STALE_SEC = float(os.environ.get("STATE_STALE_SEC", "2.0"))
 
 # Allowlist aliases (stable frontend contract)
-ALLOWED_TOPICS: Dict[str, Dict[str, str]] = {
+# Subscribed at startup and sent as robot state, unless "in_state" is False
+ALLOWED_TOPICS: Dict[str, Dict[str, Any]] = {
     "imu_left_foot": {"name": "/leg_l/imu/foot", "type": "tcp_msg/msg/MPU6500Sample"},
     "imu_left_leg": {"name": "/leg_l/imu/leg", "type": "tcp_msg/msg/MPU6500Sample"},
     "imu_right_foot": {"name": "/leg_r/imu/foot", "type": "tcp_msg/msg/MPU6500Sample"},
@@ -20,7 +21,8 @@ ALLOWED_TOPICS: Dict[str, Dict[str, str]] = {
     "imu_body": {"name": "/Body/mpu", "type": "tcp_msg/msg/MPU6500Sample"},
 
     "camera_info": {"name": "/relay/camera/camera_info", "type": "sensor_msgs/msg/CameraInfo"},
-    "image_raw_compressed": {"name": "/relay/camera/image_raw/compressed", "type": "sensor_msgs/msg/CompressedImage"},
+    # Served by /mjpeg, too large for robot state
+    "image_raw_compressed": {"name": "/relay/camera/image_raw/compressed", "type": "sensor_msgs/msg/CompressedImage", "in_state": False},
 
     "scene_detections": {
     "name": "/scene_understanding/detections",

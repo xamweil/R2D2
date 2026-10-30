@@ -10,10 +10,10 @@ from rclpy.node import Node
 from rclpy.task import Future
 from rclpy.action import ActionClient
 
-from .config import ALLOWED_PUBLISH_TOPICS, ALLOWED_TOPICS, NODE_NAME, STALE_SEC
+from .config import ALLOWED_PUBLISH_TOPICS, ALLOWED_TOPICS, NODE_NAME
 from .ros_introspection import import_msg_class, import_srv_class, import_action_class
 from .ros_types import RosCmd
-from .serialize import to_jsonable
+from .state_store import LatestMessageStore
 
 
 def now_s() -> float:
@@ -21,10 +21,10 @@ def now_s() -> float:
 
 
 class WebUiBridge(Node):
-    def __init__(self) -> None:
+    def __init__(self, store: LatestMessageStore) -> None:
         super().__init__(NODE_NAME)
+        self._store = store
         self._subs: Dict[str, Tuple[Any, str]] = {}
-        self._state: Dict[str, Dict[str, Any]] = {}
         self._pubs: Dict[str, Tuple[Any, str]] = {}
 
         self._actions: Dict[str, Any] = {}
@@ -55,10 +55,6 @@ class WebUiBridge(Node):
                 return False
             executor.spin_once(timeout_sec=0.05)
         return done()
-
-    def _update_state(self, alias: str, msg: Any) -> None:
-        t = now_s()
-        self._state[alias] = {"t": t, "msg": msg}
 
     def _fill_msg_fields(self, msg: Any, values: Dict[str, Any]) -> None:
         """
@@ -165,7 +161,7 @@ class WebUiBridge(Node):
             return
         msg_cls = import_msg_class(msg_type_str)
         sub = self.create_subscription(
-            msg_cls, topic_name, lambda m, a=alias: self._update_state(a, m), 10
+            msg_cls, topic_name, lambda m, a=alias: self._store.update(a, m), 10
         )
         self._subs[alias] = (sub, msg_type_str)
         self.get_logger().info(
@@ -263,45 +259,6 @@ class WebUiBridge(Node):
 
         return resp
 
-    def snapshot_state(self) -> Dict[str, Any]:
-        t_now = now_s()
-        out: Dict[str, Any] = {"t": t_now, "stale_sec": STALE_SEC, "entries": {}}
-
-        # Always include allowlisted entries even if missing
-        for alias in ALLOWED_TOPICS.keys():
-            entry = self._state.get(alias)
-            if entry is None:
-                out["entries"][alias] = {
-                    "present": False,
-                    "stale": True,
-                    "t": None,
-                    "data": None,
-                }
-            else:
-                age = t_now - float(entry["t"])
-                out["entries"][alias] = {
-                    "present": True,
-                    "stale": age > STALE_SEC,
-                    "age": age,
-                    "t": entry["t"],
-                    "data": to_jsonable(entry["msg"]),
-                }
-
-        # Include dev-added subs too
-        for alias, entry in self._state.items():
-            if alias in out["entries"]:
-                continue
-            age = t_now - float(entry["t"])
-            out["entries"][alias] = {
-                "present": True,
-                "stale": age > STALE_SEC,
-                "age": age,
-                "t": entry["t"],
-                "data": to_jsonable(entry["msg"]),
-            }
-
-        return out
-
 
 def _handle_cmd(node: WebUiBridge, cmd: RosCmd) -> Dict[str, Any]:
     if cmd.kind == "subscribe":
@@ -319,10 +276,7 @@ def _handle_cmd(node: WebUiBridge, cmd: RosCmd) -> Dict[str, Any]:
             cmd.data["request"],
             timeout_sec=float(cmd.data.get("timeout_sec", 2.0)),
         )
-        return {"ok": True, "response": to_jsonable(resp)}
-
-    elif cmd.kind == "snapshot":
-        return {"ok": True, "state": node.snapshot_state()}
+        return {"ok": True, "response": resp}
 
     elif cmd.kind == "camera_start":
         node.camera_start()
@@ -334,7 +288,6 @@ def _handle_cmd(node: WebUiBridge, cmd: RosCmd) -> Dict[str, Any]:
 
     elif cmd.kind == "camera_get":
         res = node.camera_get_latest()
-        # IMPORTANT: do not to_jsonable() raw bytes
         if not res["ok"]:
             return res
         return {"ok": True, "jpeg": res["jpeg"], "t": res["t"]}
@@ -370,28 +323,14 @@ def _handle_cmd(node: WebUiBridge, cmd: RosCmd) -> Dict[str, Any]:
         return {"ok": False, "error": f"unknown_cmd_kind:{cmd.kind}"}
 
 
-def ros_thread_main(ros_cmd_q: queue.Queue[RosCmd]) -> None:
+def ros_thread_main(ros_cmd_q: queue.Queue[RosCmd], store: LatestMessageStore) -> None:
     rclpy.init()
-    node = WebUiBridge()
+    node = WebUiBridge(store)
     executor = SingleThreadedExecutor()
     executor.add_node(node)
 
-    PRE_SUBSCRIBE_ALIASES = {
-        "imu_left_foot",
-        "imu_left_leg",
-        "imu_right_foot",
-        "imu_right_leg",
-        "imu_body",
-        "camera_info",
-        "image_raw_compressed",
-        "scene_detections",
-        "tracking_tracks",
-    }
-
-    for alias in PRE_SUBSCRIBE_ALIASES:
-        info = ALLOWED_TOPICS.get(alias)
-        if not info:
-            node.get_logger().warning(f"Pre subscribe alias {alias} not in ALLOWED_TIOICS")
+    for alias, info in ALLOWED_TOPICS.items():
+        if not info.get("in_state", True):
             continue
         try:
             node.subscribe_alias(alias, info["name"], info["type"])

@@ -123,27 +123,40 @@ Endpoint:
 
 ````
 
-Message structure:
+Message structure (sent at `STATE_HZ`):
 
 ```json
 {
-  "entries": {
-    "imu_body": {...},
-    "scene_detections": {...},
-    "imu_left_leg": {...}
+  "type": "robot_state_delta",
+  "payload": {
+    "t": 1730000000.12,
+    "stale_sec": 2.0,
+    "entries": {
+      "imu_body": {"t": 1730000000.05, "data": {...}},
+      "scene_detections": {"t": 1729999999.98, "data": {...}}
+    }
   }
 }
-````
+```
 
-Each entry contains:
+`entries` only holds messages received since the client's previous frame. A new
+client's first frame holds the latest message of every topic. A frame is sent
+even when `entries` is empty, because `t` keeps ages current.
+
+`frontend/js/api/websocket.js` merges these frames and passes the UI the complete
+state. Each entry contains:
 
 ```
 present
 stale
 age
-timestamp
+t
 data
 ```
+
+`age` and `stale` are derived from the server's `t`, so they are not affected by
+a clock difference between robot and browser. A topic that has not received a
+message yet is absent from `entries`.
 
 This allows the UI to detect stale or missing sensors.
 
@@ -226,7 +239,10 @@ Example:
 
 2. Restart the container or rebuild the workspace.
 
-3. The topic will automatically appear in the WebSocket robot state.
+3. The topic is subscribed at startup and will automatically appear in the WebSocket robot state.
+
+Set `"in_state": False` on a topic to keep it out of robot state, as
+`image_raw_compressed` does: it is only subscribed while `/mjpeg` is streaming.
 
 Frontend access example:
 
@@ -238,18 +254,25 @@ payload.entries.scene_detections
 
 # Serialization
 
-ROS messages are converted into JSON using utilities in:
+ROS messages are converted into JSON with `orjson` in the web layer, using
+utilities in:
 
 ```
 serialize.py
 ```
 
-The serializer supports:
+The ROS thread only stores the latest message per alias (`state_store.py`). It
+does no serialization.
+
+The serializer needs no per-message code and supports:
 
 * standard ROS messages
 * nested message structures
 * arrays
 * custom interface packages
+
+`uint8[]` fields and raw bytes are replaced by `{"_bytes_len": n}`, to keep image
+data out of the state frames. NaN and infinity become `null`.
 
 This allows complex messages like:
 

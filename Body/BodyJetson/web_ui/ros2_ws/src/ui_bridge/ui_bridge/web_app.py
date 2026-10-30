@@ -1,23 +1,51 @@
 import json
 import asyncio
 import queue
-from typing import Any, Dict, Set
+import time
+from typing import Any, Dict, Tuple
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from pydantic import BaseModel
 
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 import os
 
 from .config import DEV_UNSAFE, STATE_PERIOD, STATE_HZ, STALE_SEC, ALLOWED_TOPICS, ALLOWED_SERVICES, NODE_NAME, CAMERA_PERIOD, ALLOWED_PUBLISH_TOPICS, ALLOWED_ACTIONS
 from .ros_types import RosCmd
+from .serialize import dumps, dumps_text
+from .state_store import LatestMessageStore
 
 
 async def _get_reply(reply_q: "queue.Queue", timeout: float = 1.0):
     """Get from a threading Queue without blocking the async event loop."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, lambda: reply_q.get(timeout=timeout))
+
+
+async def _send_msg(ws: WebSocket, obj: Any) -> None:
+    await ws.send_text(dumps_text(obj))
+
+
+def _json_response(obj: Any) -> Response:
+    """Replies can hold ROS messages, which FastAPI can't encode."""
+    return Response(dumps(obj), media_type="application/json")
+
+
+def _state_frame(store: LatestMessageStore, cursor: int) -> Tuple[int, str]:
+    """Encode the entries newer than cursor. Returns the new cursor and the frame."""
+    seq, changed = store.since(cursor)
+    try:
+        return seq, dumps_text({
+            "type": "robot_state_delta",
+            "payload": {
+                "t": time.time(),
+                "stale_sec": STALE_SEC,
+                "entries": {alias: {"t": e.t, "data": e.msg} for alias, e in changed.items()},
+            },
+        })
+    except Exception as e:
+        return seq, dumps_text({"type": "state_error", "payload": {"error": str(e)}})
 
 
 class AllowedCall(BaseModel):
@@ -39,7 +67,7 @@ class GenericSubscribe(BaseModel):
     type: str
 
 
-def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
+def create_app(ros_cmd_q: "queue.Queue[RosCmd]", store: LatestMessageStore) -> FastAPI:
     app = FastAPI(title="web_ui")
 
     frontend_dir = os.environ.get("WEB_UI_FRONTEND_DIR", "/home/ros/frontend")
@@ -51,7 +79,8 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
         def index():
             return FileResponse(os.path.join(frontend_dir, "index.html"))
 
-    ws_clients: Set[WebSocket] = set()
+    # Client -> store cursor. A new client starts at 0, so its first frame is the full state.
+    ws_clients: Dict[WebSocket, int] = {}
     ws_lock = asyncio.Lock()
 
     @app.get("/health")
@@ -71,7 +100,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
             data={"service": info["name"], "type": info["type"], "request": body.request, "timeout_sec": body.timeout_sec},
             reply_q=reply_q,
         ))
-        return reply_q.get(timeout=body.timeout_sec + 1.0)
+        return _json_response(reply_q.get(timeout=body.timeout_sec + 1.0))
 
     @app.post("/publish/allowed")
     async def publish_allowed(payload: Dict[str, Any]):
@@ -290,7 +319,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
             data={"service": body.service, "type": body.type, "request": body.request, "timeout_sec": body.timeout_sec},
             reply_q=reply_q,
         ))
-        return reply_q.get(timeout=body.timeout_sec + 1.0)
+        return _json_response(reply_q.get(timeout=body.timeout_sec + 1.0))
 
     @app.post("/subscribe")
     def subscribe(body: GenericSubscribe):
@@ -320,36 +349,22 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
         while True:
             await asyncio.sleep(STATE_PERIOD)
 
-            # Skip snapshot when no WebSocket clients are connected
             async with ws_lock:
-                if not ws_clients:
-                    continue
-
-            reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
-            try:
-                ros_cmd_q.put_nowait(RosCmd(kind="snapshot", data={}, reply_q=reply_q))
-            except queue.Full:
-                continue
-
-            try:
-                resp = await _get_reply(reply_q, 1.0)
-            except queue.Empty:
-                continue
-
-            if not resp.get("ok"):
-                payload = {"type": "state_error", "payload": {"error": resp.get("error", "unknown")}}
-            else:
-                payload = {"type": "robot_state", "payload": resp["state"]}
-
-            async with ws_lock:
+                # Clients at the same cursor share one encoded frame. A frame goes
+                # out even with no changed entries: its "t" keeps ages current.
+                frames: Dict[int, Tuple[int, str]] = {}
                 dead = set()
-                for ws in ws_clients:
+                for ws, cursor in list(ws_clients.items()):
+                    if cursor not in frames:
+                        frames[cursor] = _state_frame(store, cursor)
+                    seq, frame = frames[cursor]
                     try:
-                        await ws.send_json(payload)
+                        await ws.send_text(frame)
+                        ws_clients[ws] = seq
                     except Exception:
                         dead.add(ws)
                 for ws in dead:
-                    ws_clients.discard(ws)
+                    ws_clients.pop(ws, None)
 
     @app.on_event("startup")
     async def on_startup():
@@ -359,9 +374,9 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
     async def ws_endpoint(ws: WebSocket):
         await ws.accept()
         async with ws_lock:
-            ws_clients.add(ws)
+            ws_clients[ws] = 0
 
-        await ws.send_json({
+        await _send_msg(ws,{
             "type": "hello",
             "payload": {
                 "dev_unsafe": DEV_UNSAFE,
@@ -378,7 +393,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                 try:
                     data = json.loads(raw)
                 except Exception:
-                    await ws.send_json({"type": "error", "payload": {"error": "invalid_json"}})
+                    await _send_msg(ws,{"type": "error", "payload": {"error": "invalid_json"}})
                     continue
 
                 mtype = data.get("type", "")
@@ -388,7 +403,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                     timeout_sec = float(data.get("timeout_sec", 2.0))
 
                     if alias not in ALLOWED_SERVICES:
-                        await ws.send_json({"type": "call_result", "payload": {"ok": False, "error": "unknown_alias"}})
+                        await _send_msg(ws,{"type": "call_result", "payload": {"ok": False, "error": "unknown_alias"}})
                         continue
 
                     info = ALLOWED_SERVICES[alias]
@@ -402,11 +417,11 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                         resp = await _get_reply(reply_q, timeout_sec + 1.0)
                     except queue.Empty:
                         resp = {"ok": False, "error": "timeout_waiting_for_ros"}
-                    await ws.send_json({"type": "call_result", "payload": resp})
+                    await _send_msg(ws,{"type": "call_result", "payload": resp})
 
                 elif mtype == "call":
                     if not DEV_UNSAFE:
-                        await ws.send_json({"type": "call_result", "payload": {"ok": False, "error": "DEV_UNSAFE_required"}})
+                        await _send_msg(ws,{"type": "call_result", "payload": {"ok": False, "error": "DEV_UNSAFE_required"}})
                         continue
 
                     srv = data.get("service", "")
@@ -424,7 +439,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                         resp = await _get_reply(reply_q, timeout_sec + 1.0)
                     except queue.Empty:
                         resp = {"ok": False, "error": "timeout_waiting_for_ros"}
-                    await ws.send_json({"type": "call_result", "payload": resp})
+                    await _send_msg(ws,{"type": "call_result", "payload": resp})
 
                 elif mtype == "subscribe":
                     alias = data.get("alias", "")
@@ -434,7 +449,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                         typ = info["type"]
                     else:
                         if not DEV_UNSAFE:
-                            await ws.send_json({"type": "subscribe_result", "payload": {"ok": False, "error": "DEV_UNSAFE_required"}})
+                            await _send_msg(ws,{"type": "subscribe_result", "payload": {"ok": False, "error": "DEV_UNSAFE_required"}})
                             continue
                         topic = data.get("topic", "")
                         typ = data.get("type_name", "") or data.get("type", "")
@@ -445,7 +460,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                         resp = await _get_reply(reply_q, 2.0)
                     except queue.Empty:
                         resp = {"ok": False, "error": "timeout_waiting_for_ros"}
-                    await ws.send_json({"type": "subscribe_result", "payload": resp})
+                    await _send_msg(ws,{"type": "subscribe_result", "payload": resp})
 
                 elif mtype == "unsubscribe":
                     alias = data.get("alias", "")
@@ -455,15 +470,15 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                         resp = await _get_reply(reply_q, 2.0)
                     except queue.Empty:
                         resp = {"ok": False, "error": "timeout_waiting_for_ros"}
-                    await ws.send_json({"type": "unsubscribe_result", "payload": resp})
+                    await _send_msg(ws,{"type": "unsubscribe_result", "payload": resp})
 
                 else:
-                    await ws.send_json({"type": "error", "payload": {"error": f"unknown_message_type:{mtype}"}})
+                    await _send_msg(ws,{"type": "error", "payload": {"error": f"unknown_message_type:{mtype}"}})
 
         except WebSocketDisconnect:
             pass
         finally:
             async with ws_lock:
-                ws_clients.discard(ws)
+                ws_clients.pop(ws, None)
 
     return app

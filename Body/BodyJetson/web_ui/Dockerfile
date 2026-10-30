@@ -20,6 +20,7 @@ RUN pip3 install --no-cache-dir \
     fastapi \
     "uvicorn[standard]" \
     pydantic \
+    orjson \
     py-spy
 
 # Entrypoint scripts
