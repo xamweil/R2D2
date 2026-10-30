@@ -18,7 +18,7 @@ def main() -> None:
 
     # Start FastAPI
     app = create_app(ros_cmd_q)
-    uvicorn.run(app, host=HOST, port=PORT, log_level="info")
+    uvicorn.run(app, host=HOST, port=PORT, log_level="info", ws_per_message_deflate=False)
 
 if __name__ == "__main__":
     main()

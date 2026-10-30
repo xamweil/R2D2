@@ -2,9 +2,10 @@
 import queue
 import threading
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import rclpy
+from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 from rclpy.task import Future
 from rclpy.action import ActionClient
@@ -35,6 +36,25 @@ class WebUiBridge(Node):
         self._cam_ts: float = 0.0
         self._cam_sub_alias = "camera_mjpeg"  # internal alias for the subscription
         self._cam_refcount = 0
+
+    def _spin_until(self, done: Callable[[], bool], timeout_sec: float) -> bool:
+        """
+        Spin this node's executor until done() is true or timeout_sec elapses.
+        Keeps subscription callbacks running while waiting, unlike
+        wait_for_service()/wait_for_server(), which only sleep.
+        Must use the node's own executor: rclpy.spin_once(self) would move the
+        node to the global executor and detach it from the main loop's one.
+        """
+        executor = self.executor
+        if executor is None:
+            raise RuntimeError("Node is not attached to an executor")
+
+        end = now_s() + timeout_sec
+        while rclpy.ok() and not done():
+            if now_s() >= end:
+                return False
+            executor.spin_once(timeout_sec=0.05)
+        return done()
 
     def _update_state(self, alias: str, msg: Any) -> None:
         t = now_s()
@@ -109,7 +129,7 @@ class WebUiBridge(Node):
             client, _ = self._actions[alias]
             action_cls = import_action_class(action_type_str)
 
-        if not client.wait_for_server(timeout_sec=timeout_sec):
+        if not self._spin_until(client.server_is_ready, timeout_sec):
             raise RuntimeError(f"Action server not available: {action_name}")
 
         goal_msg = action_cls.Goal()
@@ -117,11 +137,8 @@ class WebUiBridge(Node):
 
         send_future = client.send_goal_async(goal_msg)
 
-        start = now_s()
-        while rclpy.ok() and not send_future.done():
-            rclpy.spin_once(self, timeout_sec=0.05)
-            if now_s() - start > timeout_sec:
-                raise TimeoutError(f"Action goal send timed out: {action_name}")
+        if not self._spin_until(send_future.done, timeout_sec):
+            raise TimeoutError(f"Action goal send timed out: {action_name}")
 
         goal_handle = send_future.result()
         if goal_handle is None or not goal_handle.accepted:
@@ -137,11 +154,8 @@ class WebUiBridge(Node):
 
         cancel_future = goal_handle.cancel_goal_async()
 
-        start = now_s()
-        while rclpy.ok() and not cancel_future.done():
-            rclpy.spin_once(self, timeout_sec=0.05)
-            if now_s() - start > timeout_sec:
-                raise TimeoutError(f"Cancel action goal timed out for alias: {alias}")
+        if not self._spin_until(cancel_future.done, timeout_sec):
+            raise TimeoutError(f"Cancel action goal timed out for alias: {alias}")
 
         self._active_action_goals.pop(alias, None)
         return {"ok": True}
@@ -226,7 +240,7 @@ class WebUiBridge(Node):
         srv_cls = import_srv_class(srv_type_str)
         client = self.create_client(srv_cls, service_name)
 
-        if not client.wait_for_service(timeout_sec=timeout_sec):
+        if not self._spin_until(client.service_is_ready, timeout_sec):
             raise RuntimeError(f"Service not available: {service_name}")
 
         req = srv_cls.Request()
@@ -237,11 +251,8 @@ class WebUiBridge(Node):
 
         fut: Future = client.call_async(req)
 
-        start = now_s()
-        while rclpy.ok() and not fut.done():
-            rclpy.spin_once(self, timeout_sec=0.1)
-            if now_s() - start > timeout_sec:
-                raise TimeoutError(f"Service call timed out: {service_name}")
+        if not self._spin_until(fut.done, timeout_sec):
+            raise TimeoutError(f"Service call timed out: {service_name}")
 
         resp = fut.result()
 
@@ -329,35 +340,29 @@ def _handle_cmd(node: WebUiBridge, cmd: RosCmd) -> Dict[str, Any]:
         return {"ok": True, "jpeg": res["jpeg"], "t": res["t"]}
 
     elif cmd.kind == "publish":
-        alias = cmd.data["alias"]
-        topic = cmd.data["topic"]
-        msg_type = cmd.data["type"]
-        msg = cmd.data["msg"]
-
-        node.publish_alias(alias, topic, msg_type, msg)
+        node.publish_alias(
+                cmd.data["alias"],
+                cmd.data["topic"],
+                cmd.data["type"],
+                cmd.data["msg"]
+        )
         return {"ok": True}
 
     elif cmd.kind == "send_action_goal":
-        alias = cmd.data["alias"]
-        action_name = cmd.data["action"]
-        action_type = cmd.data["type"]
-        goal = cmd.data["goal"]
-        timeout_sec = float(cmd.data.get("timeout_sec", 2.0))
-
         result = node.send_action_goal(
-            alias,
-            action_name,
-            action_type,
-            goal,
-            timeout_sec=timeout_sec,
+            cmd.data["alias"],
+            cmd.data["action"],
+            cmd.data["type"],
+            cmd.data["goal"],
+            float(cmd.data.get("timeout_sec", 2.0))
         )
         return {"ok": True, "result": result}
 
     elif cmd.kind == "cancel_action_goal":
-        alias = cmd.data["alias"]
-        timeout_sec = float(cmd.data.get("timeout_sec", 2.0))
-
-        result = node.cancel_action_goal(alias, timeout_sec=timeout_sec)
+        result = node.cancel_action_goal(
+            cmd.data["alias"],
+            float(cmd.data.get("timeout_sec", 2.0))
+        )
         return {"ok": True, "result": result}
 
     else:
@@ -368,6 +373,8 @@ def _handle_cmd(node: WebUiBridge, cmd: RosCmd) -> Dict[str, Any]:
 def ros_thread_main(ros_cmd_q: queue.Queue[RosCmd]) -> None:
     rclpy.init()
     node = WebUiBridge()
+    executor = SingleThreadedExecutor()
+    executor.add_node(node)
 
     PRE_SUBSCRIBE_ALIASES = {
         "imu_left_foot",
@@ -384,6 +391,7 @@ def ros_thread_main(ros_cmd_q: queue.Queue[RosCmd]) -> None:
     for alias in PRE_SUBSCRIBE_ALIASES:
         info = ALLOWED_TOPICS.get(alias)
         if not info:
+            node.get_logger().warning(f"Pre subscribe alias {alias} not in ALLOWED_TIOICS")
             continue
         try:
             node.subscribe_alias(alias, info["name"], info["type"])
@@ -392,7 +400,7 @@ def ros_thread_main(ros_cmd_q: queue.Queue[RosCmd]) -> None:
 
     try:
         while rclpy.ok():
-            rclpy.spin_once(node, timeout_sec=0.05)
+            executor.spin_once(timeout_sec=0.05)
 
             while True:
                 try:
@@ -407,5 +415,6 @@ def ros_thread_main(ros_cmd_q: queue.Queue[RosCmd]) -> None:
                 cmd.reply_q.put(reply)
 
     finally:
+        executor.shutdown()
         node.destroy_node()
         rclpy.shutdown()

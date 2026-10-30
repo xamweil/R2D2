@@ -86,7 +86,7 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
 
         info = ALLOWED_PUBLISH_TOPICS[alias]
 
-        reply_q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=1)
+        reply_q: queue.Queue[Dict[str, Any]] = queue.Queue(maxsize=1)
         ros_cmd_q.put(
             RosCmd(
                 kind="publish",

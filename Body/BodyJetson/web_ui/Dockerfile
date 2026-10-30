@@ -13,15 +13,14 @@ RUN apt-get update && apt-get install -y \
     ros-$ROS_DISTRO-image-transport \
     ros-$ROS_DISTRO-compressed-image-transport \
     ros-humble-vision-msgs \
-    libboost-all-dev \
-    rapidjson-dev \
- && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
 # FastAPI stack
 RUN pip3 install --no-cache-dir \
     fastapi \
     "uvicorn[standard]" \
-    pydantic
+    pydantic \
+    py-spy
 
 # Entrypoint scripts
 COPY docker/ros_entrypoint.sh /usr/local/bin/ros_entrypoint.sh

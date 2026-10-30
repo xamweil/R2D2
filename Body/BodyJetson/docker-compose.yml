@@ -58,7 +58,8 @@ services:
       - ./central_comm/ros2_ws/src/serial_msg:/home/ros/ros2_ws/src/serial_msg:ro
       - ./central_comm/ros2_ws/src/tcp_msg:/home/ros/ros2_ws/src/tcp_msg:ro
       - ./action_layer/ros2_ws/src/behavior_msgs:/home/ros/ros2_ws/src/behavior_msgs:ro
-
+    cap_add:
+      - SYS_PTRACE
   visual_perception:
     user: root
     build:
