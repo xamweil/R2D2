@@ -239,7 +239,17 @@ ros2 launch drive_control launch.py
 The node is also started automatically by the `central_comm` `auto_launch.sh`.
 
 ---
-
+## Example Messages
+Start Motor with `ID=15` with `100rpm`.
+```bash
+ros2 topic pub --once /motor_command serial_msg/msg/MotorCommand \
+"{ids: [15], enable: [true], direction: [false], angle_set: [false], velocity_set: [true], angle: [0.0], velocity: [100]}"
+```
+Stop Motor with `ID=15`.
+```bash
+ros2 topic pub --once /motor_command serial_msg/msg/MotorCommand \
+"{ids: [15], enable: [true], direction: [false], angle_set: [false], velocity_set: [true], angle: [0.0], velocity: [0]}"
+```
 ## TODO
 
 * Implement special DDSM115 `0x74` feedback request.
