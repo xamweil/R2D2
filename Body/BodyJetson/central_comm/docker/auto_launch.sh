@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -eo pipefail
+
 source /opt/ros/humble/setup.bash
 
 cd /home/ros/ros2_ws
 
-# Forced rebuild
+mkdir -p build install log
+
+# Forced clean rebuild
 if [ -n "${FORCE_REBUILD:-}" ]; then
   echo "[auto_launch] FORCE_REBUILD set -> cleaning build/install/log"
   rm -rf build install log
@@ -13,8 +16,9 @@ fi
 # Build only if needed (first run / clean tree)
 if [ ! -f "install/setup.bash" ] || [ -z "$(ls -A build 2>/dev/null)" ]; then
   echo "[auto_launch] Building workspace (merged install, symlink)…"
+  # One build, one consistent install prefix to get custom message type ref in setup.bash:
   colcon build --merge-install \
-    --packages-select tcp_msg serial_msg body_imu_bus motor_control
+  --packages-select tcp_msg serial_msg xiao_bridge body_mpu_reader motor_control drive_control
 else
   echo "[auto_launch] Using existing build/install."
 fi
@@ -54,11 +58,31 @@ run_motor_control() {
 
   while true; do
     echo "[motor_control] $(date +'%F %T') starting process…"
+    set +e
     stdbuf -oL -eL ros2 run motor_control motor_control \
-      >> "${logfile}" 2>&1 || true
+      >> "${logfile}" 2>&1
 
     rc=$?
+    set -e
     echo "[motor_control] $(date +'%F %T') exited (rc=${rc}); retrying in 2s…" | tee -a "${logfile}"
+    sleep 2
+  done
+}
+
+run_drive_control() {
+  local logfile="${ROS_LOG_DIR}/drive_control.log"
+
+  echo "[drive_control] starting loop (log: ${logfile})"
+
+  while true; do
+    echo "[drive_control] $(date +'%F %T') starting process…"
+    set +e
+    stdbuf -oL -eL ros2 launch drive_control launch.py \
+      >> "${logfile}" 2>&1
+
+    rc=$?
+    set -e
+    echo "[drive_control] $(date +'%F %T') exited (rc=${rc}); retrying in 2s…" | tee -a "${logfile}"
     sleep 2
   done
 }
@@ -72,6 +96,9 @@ run_body_imu_bus 7 0x70 50 10.0 &
 pids+=($!)
 
 run_motor_control &
+pids+=($!)
+
+run_drive_control &
 pids+=($!)
 
 # Keep PID 1 alive
