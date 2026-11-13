@@ -18,7 +18,7 @@ if [ ! -f "install/setup.bash" ] || [ -z "$(ls -A build 2>/dev/null)" ]; then
   echo "[auto_launch] Building workspace (merged install, symlink)…"
   # One build, one consistent install prefix to get custom message type ref in setup.bash:
   colcon build --merge-install \
-  --packages-select tcp_msg serial_msg xiao_bridge body_mpu_reader motor_control drive_control
+  --packages-select tcp_msg serial_msg body_imu_bus motor_control drive_control
 else
   echo "[auto_launch] Using existing build/install."
 fi
