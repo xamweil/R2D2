@@ -12,6 +12,7 @@ import os
 
 from .config import DEV_UNSAFE, STATE_PERIOD, STATE_HZ, STALE_SEC, ALLOWED_TOPICS, ALLOWED_SERVICES, NODE_NAME, CAMERA_PERIOD, ALLOWED_PUBLISH_TOPICS, ALLOWED_ACTIONS
 from .ros_types import RosCmd
+from .teleop import TeleopState
 
 
 async def _get_reply(reply_q: "queue.Queue", timeout: float = 1.0):
@@ -39,7 +40,7 @@ class GenericSubscribe(BaseModel):
     type: str
 
 
-def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
+def create_app(ros_cmd_q: "queue.Queue[RosCmd]", teleop: TeleopState) -> FastAPI:
     app = FastAPI(title="web_ui")
 
     frontend_dir = os.environ.get("WEB_UI_FRONTEND_DIR", "/home/ros/frontend")
@@ -50,6 +51,10 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
         @app.get("/")
         def index():
             return FileResponse(os.path.join(frontend_dir, "index.html"))
+
+        @app.get("/controller")
+        def controller_page():
+            return FileResponse(os.path.join(frontend_dir, "controller.html"))
 
     ws_clients: Set[WebSocket] = set()
     ws_lock = asyncio.Lock()
@@ -382,7 +387,17 @@ def create_app(ros_cmd_q: "queue.Queue[RosCmd]") -> FastAPI:
                     continue
 
                 mtype = data.get("type", "")
-                if mtype == "call_allowed":
+                if mtype == "joystick":
+                    # Hot path (20 Hz per stick): no reply on success
+                    try:
+                        teleop.set(data["id"], data["x"], data["y"])
+                    except (KeyError, TypeError, ValueError):
+                        await ws.send_json({"type": "error", "payload": {"error": "invalid_joystick"}})
+
+                elif mtype == "stop":
+                    teleop.stop()
+
+                elif mtype == "call_allowed":
                     alias = data.get("alias", "")
                     req = data.get("request", {}) or {}
                     timeout_sec = float(data.get("timeout_sec", 2.0))

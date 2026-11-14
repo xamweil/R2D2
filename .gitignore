@@ -44,3 +44,5 @@ test.jpg
 # Temporary inference outputs
 inference_output/
 detections/
+
+.venv/

@@ -8,11 +8,21 @@ import rclpy
 from rclpy.node import Node
 from rclpy.task import Future
 from rclpy.action import ActionClient
+from sensor_msgs.msg import Joy
 
-from .config import ALLOWED_PUBLISH_TOPICS, ALLOWED_TOPICS, NODE_NAME, STALE_SEC
+from .config import (
+    ALLOWED_PUBLISH_TOPICS,
+    ALLOWED_TOPICS,
+    NODE_NAME,
+    STALE_SEC,
+    TELEOP_FRAME_ID,
+    TELEOP_HZ,
+    TELEOP_TOPIC,
+)
 from .ros_introspection import import_msg_class, import_srv_class, import_action_class
 from .ros_types import RosCmd
 from .serialize import to_jsonable
+from .teleop import TeleopState
 
 
 def now_s() -> float:
@@ -20,7 +30,7 @@ def now_s() -> float:
 
 
 class WebUiBridge(Node):
-    def __init__(self) -> None:
+    def __init__(self, teleop: TeleopState) -> None:
         super().__init__(NODE_NAME)
         self._subs: Dict[str, Tuple[Any, str]] = {}
         self._state: Dict[str, Dict[str, Any]] = {}
@@ -35,6 +45,25 @@ class WebUiBridge(Node):
         self._cam_ts: float = 0.0
         self._cam_sub_alias = "camera_mjpeg"  # internal alias for the subscription
         self._cam_refcount = 0
+
+        # Teleop: frontend joysticks -> sensor_msgs/Joy at a fixed rate
+        self._teleop = teleop
+        self._teleop_pub = self.create_publisher(Joy, TELEOP_TOPIC, 10)
+        self._teleop_idle = True
+        self.create_timer(1.0 / TELEOP_HZ, self._publish_teleop)
+
+    def _publish_teleop(self) -> None:
+        axes = self._teleop.axes()
+        idle = not any(axes)
+        if idle and self._teleop_idle:
+            return  # centered and the zero frame already went out
+        self._teleop_idle = idle
+
+        msg = Joy()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = TELEOP_FRAME_ID
+        msg.axes = axes
+        self._teleop_pub.publish(msg)
 
     def _update_state(self, alias: str, msg: Any) -> None:
         t = now_s()
@@ -292,9 +321,9 @@ class WebUiBridge(Node):
         return out
 
 
-def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
+def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]", teleop: TeleopState) -> None:
     rclpy.init()
-    node = WebUiBridge()
+    node = WebUiBridge(teleop)
 
     PRE_SUBSCRIBE_ALIASES = {
         "imu_left_foot",
@@ -319,10 +348,12 @@ def ros_thread_main(ros_cmd_q: "queue.Queue[RosCmd]") -> None:
 
     try:
         while rclpy.ok():
-            rclpy.spin_once(node, timeout_sec=0.05)
+            # Short spin, non-blocking queue read: keeps callbacks and the teleop
+            # timer at full rate while still picking up commands within ~10 ms.
+            rclpy.spin_once(node, timeout_sec=0.01)
 
             try:
-                cmd = ros_cmd_q.get(timeout=0.05)
+                cmd = ros_cmd_q.get_nowait()
             except queue.Empty:
                 continue
 

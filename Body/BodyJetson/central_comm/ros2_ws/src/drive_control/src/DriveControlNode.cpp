@@ -10,7 +10,12 @@ namespace DriveControl
 
 DriveControlNode::DriveControlNode()
     : Node("drive_control_node")
+
+
 {
+    const auto qos =
+        rclcpp::QoS(rclcpp::KeepLast(1)).best_effort().durability_volatile();
+
     // -------------------------------------------------------------------------
     // Initialize RS485 interface
     // -------------------------------------------------------------------------
@@ -64,7 +69,7 @@ DriveControlNode::DriveControlNode()
             this->create_publisher<
                 serial_msg::msg::DDSM115Feedback>(
                     topic,
-                    10);
+                    qos);
 
         feedbackPublishers_.push_back(
             {motor.get(), publisher});
@@ -81,8 +86,8 @@ DriveControlNode::DriveControlNode()
 
     motorCommandSub_ =
         this->create_subscription<serial_msg::msg::MotorCommand>(
-            "/motor_command",
-            10,
+            "/drive_command",
+            qos,
             std::bind(
                 &DriveControlNode::motorCommandCallback,
                 this,
