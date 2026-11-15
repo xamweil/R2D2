@@ -1,0 +1,33 @@
+set shell := ["bash", "-cu"]
+
+container := "central_comm"
+
+stop:
+    docker exec {{container}} bash -lc ' \
+      source /opt/ros/humble/setup.bash && \
+      source /home/ros/ros2_ws/install/setup.bash && \
+      ros2 topic pub --once \
+        /motor_command \
+        serial_msg/msg/MotorCommand \
+        "{ids: [11, 13, 15, 17], \
+          enable: [false, false, false, false], \
+          direction: [false, false, false, false], \
+          angle_set: [false, false, false, false], \
+          velocity_set: [false, false, false, false], \
+          angle: [0.0, 0.0, 0.0, 0.0], \
+          velocity: [0, 0, 0, 0]}"'
+
+drive:
+    docker exec {{container}} bash -lc ' \
+      source /opt/ros/humble/setup.bash && \
+      source /home/ros/ros2_ws/install/setup.bash && \
+      ros2 topic pub --once \
+        /motor_command \
+        serial_msg/msg/MotorCommand \
+        "{ids: [11, 13, 15, 17], \
+          enable: [true, true, true, true], \
+          direction: [false, false, true, true], \
+          angle_set: [false, false, false, false], \
+          velocity_set: [true, true, true, true], \
+          angle: [0.0, 0.0, 0.0, 0.0], \
+          velocity: [5, 5, 5, 5]}"'
